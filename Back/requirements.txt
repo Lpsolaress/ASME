@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+openai
+faster-whisper
+supabase
+python-multipart
+python-dotenv
