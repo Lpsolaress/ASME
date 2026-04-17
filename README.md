@@ -11,11 +11,11 @@ A diferencia de las hojas de Excel tradicionales, ASME Digital elimina la fricci
 
 ## 🛠️ Stack Tecnológico
 
-- **Frontend**: [Next.js](https://nextjs.org/) (App Router), Tailwind CSS.
+- **Frontend**: [Next.js](https://nextjs.org/), [shadcn/ui](https://ui.shadcn.com/), [Recharts](https://recharts.org/), React Hook Form + Zod.
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python).
-- **Transcripción**: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (Whisper `base` ejecutado localmente).
-- **Inteligencia**: [OpenAI API](https://openai.com/) (GPT-4o Mini para clasificación avanzada).
-- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL).
+- **Transcripción**: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (Whisper `base` local).
+- **Inteligencia**: [OpenAI API](https://openai.com/) (GPT-4o Mini para análisis estratégico).
+- **Base de Datos**: [PostgreSQL](https://www.postgresql.org/) local.
 
 ## 🧩 Estructura del Proyecto
 

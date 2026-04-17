@@ -26,6 +26,7 @@ Este es el servidor backend para la aplicación ASME Digital, encargado de la tr
    Crea un archivo `.env` en la carpeta `Back/` con el siguiente contenido:
    ```env
    OPENAI_API_KEY=tu_clave_aqui
+   DATABASE_URL=postgresql://localhost:5432/ASME
    ```
 
 ## Cómo Correr el Servidor
@@ -36,7 +37,7 @@ Desde la carpeta `Back/`, ejecuta:
 python main.py
 ```
 
-El servidor iniciará en `http://localhost:8000`.
+El servidor iniciará en `http://localhost:8000` usando **Uvicorn**.
 
 ### Notas sobre Whisper Local
 - La primera vez que corras el servidor, se descargará automáticamente el modelo **Whisper `base`** (aprox. 150MB).
@@ -44,6 +45,9 @@ El servidor iniciará en `http://localhost:8000`.
 
 ## Endpoints Principales
 
-- `GET /health`: Verifica el estado del servidor y el modelo cargado.
+- `GET /health`: Verifica el estado del servidor.
 - `POST /transcribe`: Recibe un archivo de audio (blob) y devuelve el texto.
 - `POST /classify`: Recibe un texto y devuelve el análisis ASME estructurado en JSON.
+- `GET /sessions/{id}/analyze`: Genera un plan estratégico de optimización IA para toda la sesión.
+- `GET /export-pdf/{id}`: Genera el informe industrial en PDF.
+- `DELETE /activities/{id}`: Elimina una actividad.

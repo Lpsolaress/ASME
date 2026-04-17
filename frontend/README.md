@@ -28,15 +28,23 @@ La aplicación estará disponible en `http://localhost:3000`.
 
 ## Diseño y Estilos
 
+- **Componentes**: [shadcn/ui](https://ui.shadcn.com/) (diseño premium personalizado).
+- **Métricas**: [Recharts](https://recharts.org/) para visualización de VA/NVA y carga de trabajo.
+- **Formularios**: React Hook Form + Zod para validación robusta.
 - **Colores**:
-  - Primario: `#FFD600` (Amarillo)
-  - Fondo: `#FFFFFF` (Blanco)
-  - Texto/Acentos: `#111111` (Negro)
-- **Framework**: Tailwind CSS v4.
-- **Micro-animaciones**: Implementadas en CSS para el pulso de voz y transiciones de tarjetas.
+  - Primario: `oklch(0.86 0.2 90)` (Amarillo ASME)
+  - Fondo: Blanco / Soft Gray (`bg-slate-50/50`)
+  - Acentos: Negro profundo.
+- **Tipografía**: Font-sans con enfoque en legibilidad industrial.
 
 ## Estructura de Componentes
 
-- `src/components/VoiceCapture.jsx`: Maneja la grabación de audio y la comunicación con el endpoint de transcripción.
-- `src/components/ActivityCard.jsx`: Muestra los resultados de la clasificación de la IA y permite la confirmación por parte del usuario.
-- `src/app/page.js`: Orquestador principal del flujo del estudio ASME.
+- `src/components/VoiceCapture.jsx`: Maneja la grabación de audio y transcripción Whisper local.
+- `src/components/ActivityCard.jsx`: Clasificación ASME interactiva con componentes shadcn.
+- `src/components/DashboardCharts.jsx`: Visualización de métricas de proceso mediante Recharts.
+- `src/components/SessionSetup.jsx`: Alta de estudio con validación Zod.
+- `src/app/page.js`: Dashboard principal con sistema de Tabs y persistencia reactiva.
+
+## Despliegue en Vercel
+
+Este frontend es 100% compatible con Vercel. Asegúrate de configurar la variable de entorno `NEXT_PUBLIC_API_URL` apuntando a tu servidor backend (ej: Render, Railway o tu propia IP).
