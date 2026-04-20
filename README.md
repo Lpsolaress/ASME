@@ -1,8 +1,8 @@
-# ASME Digital 🏭🧠
+# ASME Digital
 
 **ASME Digital** es una herramienta de ingeniería industrial diseñada para modernizar y agilizar el mapeo de procesos empresariales. Utiliza Inteligencia Artificial para transformar descripciones en lenguaje natural (voz o texto) en estudios **ASME** estructurados, identificando automáticamente oportunidades de automatización y ahorro de tiempo.
 
-## 🚀 Valor Diferencial
+##  Valor Diferencial
 
 A diferencia de las hojas de Excel tradicionales, ASME Digital elimina la fricción de la entrada de datos:
 - **Captura por Voz**: Los operarios narran sus actividades en tiempo real.
@@ -17,7 +17,7 @@ A diferencia de las hojas de Excel tradicionales, ASME Digital elimina la fricci
 - **Inteligencia**: [OpenAI API](https://openai.com/) (GPT-4o Mini para análisis estratégico).
 - **Base de Datos**: [PostgreSQL](https://www.postgresql.org/) local.
 
-## 🧩 Estructura del Proyecto
+##  Estructura del Proyecto
 
 ```text
 Proyecto-ASME/
@@ -26,14 +26,14 @@ Proyecto-ASME/
 └── README.md    # Documentación general
 ```
 
-## ⚙️ Configuración y Ejecución
+##  Configuración y Ejecución
 
 Consulta los README específicos de cada carpeta para instrucciones detalladas:
 
 - [Configuración del Backend](./Back/readme.md)
 - [Configuración del Frontend](./frontend/README.md) (Pendiente de completar)
 
-## 📊 Metodología ASME Integrada
+##  Metodología ASME Integrada
 
 La IA clasifica automáticamente las actividades según las reglas estándar:
 - **Operación**: Transforma o procesa → **VA**
