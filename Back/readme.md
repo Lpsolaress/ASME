@@ -14,7 +14,7 @@ Este es el servidor backend para la aplicación ASME Digital, encargado de la tr
    ```bash
    python -m venv venv
    source venv/bin/activate  # En macOS/Linux
-   # venv\Scripts\activate     # En Windows
+   venv\Scripts\activate     # En Windows
    ```
 
 2. **Instalar Dependencias**:
