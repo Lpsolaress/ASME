@@ -34,6 +34,9 @@ class ActivitySave(BaseModel):
     session_id: str
     data: dict
 
+class ClassifyRequest(BaseModel):
+    text: str
+
 class OptimizationSuggestion(BaseModel):
     activity_name: str
     action: str # e.g. "Automatizar", "Rediseñar", "Eliminar"
@@ -81,10 +84,10 @@ async def transcribe_audio(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/classify")
-async def classify_activity(data: dict):
-    text = data.get("text")
+async def classify_activity(payload: ClassifyRequest):
+    text = payload.text.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="Text is required")
+        raise HTTPException(status_code=400, detail="El texto de la actividad no puede estar vacío.")
 
     system_prompt = """
     Eres un experto en ingeniería industrial y metodología ASME. 

@@ -55,7 +55,11 @@ export default function VoiceCapture({ onTranscription }) {
       
       const data = await response.json();
       setInputText(data.text);
-      if (onTranscription) onTranscription(data.text);
+      
+      // Solo llamar a onTranscription si hay texto real (evita error 400 por silencio)
+      if (data.text && data.text.trim().length > 0 && onTranscription) {
+        onTranscription(data.text.trim());
+      }
     } catch (err) {
       console.error("Transcription error:", err);
       setInputText("Error al transcribir. Revisa la consola.");

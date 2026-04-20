@@ -1,10 +1,83 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from io import BytesIO
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg') # Necessary for non-GUI environments
 
 class PDFService:
+    @staticmethod
+    def _generate_efficiency_chart(activities):
+        total_va = len([a for a in activities if a['classification'] == 'VA'])
+        total_nva = len([a for a in activities if a['classification'] == 'NVA'])
+        
+        # Colors matching dashboard
+        YELLOW = '#FFD600'
+        GRAY = '#E5E7EB'
+        
+        fig, ax = plt.subplots(figsize=(4, 4))
+        wedges, _ = ax.pie([total_va, total_nva], 
+                           colors=[YELLOW, GRAY], 
+                           startangle=90, 
+                           wedgeprops={'width': 0.4, 'edgecolor': 'w'})
+        
+        ax.set_title("EFICIENCIA DEL PROCESO\nDistribución VA vs NVA", 
+                     fontsize=10, fontweight='bold', pad=20)
+        
+        # Legend
+        ax.legend(wedges, ['Valor Añadido (VA)', 'No Valor Añadido (NVA)'],
+                  loc="center", bbox_to_anchor=(0.5, -0.1), 
+                  frameon=False, fontsize=8)
+
+        img_buffer = BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', transparent=True)
+        img_buffer.seek(0)
+        plt.close(fig)
+        return img_buffer
+
+    @staticmethod
+    def _generate_category_chart(activities):
+        # Calculate minutes per category
+        category_map = {}
+        for a in activities:
+            cat = a['category']
+            mins = a.get('annual_minutes', 0)
+            category_map[cat] = category_map.get(cat, 0) + mins
+        
+        # Sort by minutes descending
+        sorted_cats = sorted(category_map.items(), key=lambda x: x[1], reverse=True)
+        names = [x[0] for x in sorted_cats]
+        values = [x[1] for x in sorted_cats]
+        
+        YELLOW = '#FFD600'
+        TEXT_COLOR = '#4B5563'
+
+        fig, ax = plt.subplots(figsize=(6, 4))
+        bars = ax.barh(names, values, color=YELLOW)
+        ax.invert_yaxis() # Highest on top
+        
+        ax.set_title("CARGA POR CATEGORÍA\nMinutos anuales totales", 
+                     fontsize=10, fontweight='bold', pad=20)
+        
+        # Hide spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.set_xticks([]) # Hide x-axis ticks
+        
+        # Add labels
+        for i, v in enumerate(values):
+            ax.text(v + (max(values)*0.02), i, f"{v:,.0f} min", 
+                    color=TEXT_COLOR, fontweight='bold', va='center', fontsize=8)
+
+        img_buffer = BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', transparent=True)
+        img_buffer.seek(0)
+        plt.close(fig)
+        return img_buffer
+
     @staticmethod
     def generate_asme_report(session, activities, global_analysis=None):
         buffer = BytesIO()
@@ -64,10 +137,36 @@ class PDFService:
         ]))
         
         elements.append(Paragraph("RESUMEN EJECUTIVO", styles['Heading3']))
+        
+        # Layout for summary and charts
+        # We'll use a table to put text summary next to charts or just stack them
         elements.append(summary_table)
-        elements.append(Spacer(1, 30))
+        elements.append(Spacer(1, 20))
 
-        # 3. Detailed Activities Table
+        # 3. Visual Analytics (Charts)
+        elements.append(Paragraph("ANÁLISIS VISUAL DE PROCESO", styles['Heading3']))
+        
+        try:
+            eff_img_buf = PDFService._generate_efficiency_chart(activities)
+            cat_img_buf = PDFService._generate_category_chart(activities)
+            
+            # Add images to elements
+            # We wrap them in a table to put them side-by-side
+            eff_img = Image(eff_img_buf, width=200, height=200)
+            cat_img = Image(cat_img_buf, width=280, height=180)
+            
+            chart_table = Table([[eff_img, cat_img]], colWidths=[220, 300])
+            chart_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            elements.append(chart_table)
+        except Exception as e:
+            elements.append(Paragraph(f"Error generando gráficos: {str(e)}", styles['Normal']))
+        
+        elements.append(Spacer(1, 10))
+
+        # 4. Detailed Activities Table
         elements.append(Paragraph("DETALLE DE ACTIVIDADES", styles['Heading3']))
         
         table_data = [["Actividad", "Categoría", "Tipo", "Tiempo", "Vol.", "Anual (min)"]]
@@ -100,7 +199,7 @@ class PDFService:
 
         elements.append(act_table)
 
-        # 4. Global AI Analysis (Optional)
+        # 5. Global AI Analysis (Optional)
         if global_analysis:
             elements.append(PageBreak())
             elements.append(Paragraph("PLAN DE OPTIMIZACIÓN ESTRATÉGICA (IA)", styles['Heading1']))

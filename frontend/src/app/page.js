@@ -244,6 +244,15 @@ export default function Home() {
                     </TabsList>
                     
                     <Button 
+                      variant="outline"
+                      onClick={() => handleExport(!!analysis)}
+                      className="h-12 rounded-full font-black uppercase text-[10px] tracking-widest px-8 border-gray-200 text-black hover:bg-gray-50"
+                    >
+                      <Download className="w-3.5 h-3.5 mr-2" />
+                      PDF
+                    </Button>
+
+                    <Button 
                       onClick={runFinalAnalysis}
                       className="h-12 rounded-full font-black uppercase text-[10px] tracking-widest px-8 shadow-xl shadow-primary/20 text-black"
                     >
@@ -319,41 +328,6 @@ export default function Home() {
           onClose={() => setShowPreview(false)} 
           onDeleteActivity={deleteActivity} 
         />
-      )}
-
-      {/* Footer Pro shadcn */}
-      {session && (
-        <footer className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-xl text-white py-4 px-8 rounded-full border border-white/10 shadow-2xl z-50 flex items-center space-x-10">
-          <div className="flex items-center space-x-4">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_10px_#FFD600]" />
-            <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-               Session Active: <span className="text-white ml-2">{activities.length}</span>
-            </div>
-          </div>
-          
-          <div className="h-6 w-px bg-white/10" />
-
-          <div className="flex items-center space-x-4">
-             {analysis && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setAnalysis(null)}
-                className="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest"
-              >
-                Cerrar Análisis
-              </Button>
-             )}
-             <Button 
-                size="sm"
-                onClick={() => handleExport(!!analysis)}
-                className="bg-primary text-black font-black uppercase text-[10px] tracking-widest px-6 rounded-full hover:scale-105"
-             >
-                <Download className="w-3.5 h-3.5 mr-2" />
-                {analysis ? 'Exportar con IA' : 'Descargar PDF'}
-             </Button>
-          </div>
-        </footer>
       )}
     </div>
   );

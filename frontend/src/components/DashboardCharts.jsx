@@ -39,7 +39,7 @@ export default function DashboardCharts({ activities }) {
           <CardDescription>Distribución de Valor Añadido</CardDescription>
         </CardHeader>
         <CardContent className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>
               <Pie
                 data={vaData}
@@ -69,7 +69,7 @@ export default function DashboardCharts({ activities }) {
           <CardDescription>Minutos anuales totales</CardDescription>
         </CardHeader>
         <CardContent className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={categoryData} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F9FAFB" />
               <XAxis type="number" hide />

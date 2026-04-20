@@ -34,8 +34,8 @@ Este es el servidor backend para la aplicación ASME Digital, encargado de la tr
 Desde la carpeta `Back/`, ejecuta:
 
 ```bash
-python main.py
-```
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
 
 El servidor iniciará en `http://localhost:8000` usando **Uvicorn**.
 
