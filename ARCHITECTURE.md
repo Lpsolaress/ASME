@@ -1,30 +1,33 @@
 # Arquitectura del Sistema - ASME Industrial Precision
 
-Este documento detalla la estructura técnica, los flujos de datos y los casos de uso de la plataforma ASME Industrial Precision.
+## Índice de Documentación
+*   [🏠 Volver al Inicio](README.md)
+*   [🖥️ Documentación del Frontend](frontend/README.md)
+*   [⚙️ Documentación del Backend](Back/README.md)
 
-## 1. Diagrama de Arquitectura General
+---
 
-La plataforma utiliza un modelo cliente-servidor desacoplado para separar la lógica de presentación de la inteligencia de procesamiento industrial.
+## 1. Arquitectura de Alto Nivel
+La plataforma utiliza una arquitectura desacoplada diseñada para la resiliencia industrial y el procesamiento de datos en tiempo real.
 
 ```mermaid
 graph TD
     User((Ingeniero Industrial))
     
-    subgraph "Capa de Presentación (Frontend - Next.js)"
-        UI[Interfaz de Usuario Industrial]
-        State[Gestión de Estado de Sesión]
-        Charts[Motor de Gráficos SVG]
+    subgraph "Capa de Cliente (Next.js)"
+        UI[Dashboard Industrial]
+        State[Estado Global / Sesión]
+        Charts[Motor Visual SVG]
     end
     
-    subgraph "Capa de Aplicación (Backend - FastAPI)"
-        API[API Endpoints]
-        AIService[Servicio de Clasificación IA]
-        PDFGen[Servicio de Reportes PDF]
+    subgraph "Capa de Servidor (FastAPI)"
+        API[API Gateway]
+        AIService[Procesamiento IA]
+        PDFGen[Motor de Reportes PDF]
     end
     
-    subgraph "Capa de Datos"
-        DB[(PostgreSQL / Supabase)]
-        Cache[Memoria Volátil de Análisis]
+    subgraph "Capa de Persistencia"
+        DB[(Base de Datos SQL)]
     end
     
     User <--> UI
@@ -36,70 +39,57 @@ graph TD
 ```
 
 ## 2. Diagrama de Casos de Uso
-
-El sistema está diseñado para cubrir el ciclo completo de una consultoría de ingeniería industrial.
+Representación de las interacciones principales del usuario con el sistema.
 
 ```mermaid
-useCaseDiagram
-    Ingeniero --> (Configurar Sesión)
-    Ingeniero --> (Capturar Actividades por Voz/Texto)
-    Ingeniero --> (Validar Clasificación ASME)
-    Ingeniero --> (Analizar Hoja de Ruta de Automatización)
-    Ingeniero --> (Descargar Reporte Certificado)
+graph LR
+    User((Ingeniero)) --- UC1(Configurar Sesión)
+    User --- UC2(Capturar Actividades)
+    User --- UC3(Validar Clasificación ASME)
+    User --- UC4(Analizar Hoja de Ruta)
+    User --- UC5(Descargar Reporte PDF)
     
-    (Capturar Actividades) ..> (Clasificar con IA) : include
-    (Validar Clasificación) ..> (Persistir en DB) : include
-    (Descargar Reporte) ..> (Generar Gráficos Técnicos) : include
+    UC2 -.->|incluye| UC_IA(Clasificación IA)
+    UC3 -.->|persiste| DB[(DB)]
+    UC5 -.->|genera| UC_PDF(Gráficos Técnicos)
 ```
 
-## 3. Flujo de Datos (Data Flow)
-
-A continuación se detalla cómo viaja la información desde la captura de voz hasta el reporte final.
+## 3. Flujo de Datos Secuencial
+Muestra el ciclo de vida de una solicitud desde la captura hasta la certificación.
 
 ```mermaid
 sequenceDiagram
     participant U as Ingeniero
-    participant F as Frontend (Next.js)
-    participant B as Backend (FastAPI)
-    participant AI as OpenAI GPT-4o
+    participant F as Frontend
+    participant B as Backend
+    participant AI as IA (GPT-4o)
     participant D as Base de Datos
 
-    U->>F: Ingresa descripción de actividad (Voz/Texto)
-    F->>B: POST /classify {text}
-    B->>AI: Análisis Semántico ASME
-    AI-->>B: Datos Estructurados (Nombre, VA/NVA, Tiempo)
-    B-->>F: Retorna Clasificación
-    F->>B: POST /activities (Persistir)
-    B->>D: Guardar Actividad
-    U->>F: Solicitar Análisis Final
-    F->>B: POST /analyze
-    B->>AI: Generar Hoja de Ruta ROI
-    B->>D: Consultar Inventario Completo
-    B-->>F: Dashboard de Resultados
-    F->>B: GET /export-pdf
-    B->>B: Renderizar Matplotlib + ReportLab
-    B-->>U: PDF Certificado
+    U->>F: Ingresa actividad (Voz/Texto)
+    F->>B: Solicitud de Clasificación
+    B->>AI: Análisis Semántico
+    AI-->>B: Respuesta Estructurada
+    B-->>F: Clasificación Visual
+    F->>B: Guardar Actividad Confirmada
+    B->>D: Registro en SQL
+    U->>F: Generar Análisis de Optimización
+    F->>B: Ejecutar Motor de IA
+    B->>AI: Proyectar ROI y Roadmap
+    B-->>F: Visualización Dashboard (Paso 4)
+    F->>B: Exportar Reporte Certificado
+    B->>B: Renderizado PDF Industrial
+    B-->>U: Descarga de Documento
 ```
 
-## 4. Estructura de Componentes Críticos
+## 4. Desglose de Componentes Críticos
 
 ### Backend (Python/FastAPI)
-*   `main.py`: Orquestador de rutas y lógica de negocio.
-*   `services/database.py`: Capa de abstracción para operaciones SQL.
-*   `services/pdf_service.py`: Generador de documentos de alta fidelidad.
-*   `models/`: Definiciones de esquemas Pydantic para validación de datos.
+*   **main.py**: Orquestación de rutas y gestión de errores.
+*   **services/database.py**: Abstracción de la capa de datos (Psycopg2).
+*   **services/pdf_service.py**: Generador de alta fidelidad con ReportLab.
 
 ### Frontend (React/Next.js)
-*   `page.js`: Controlador principal del flujo de 5 pasos.
-*   `components/ActivityList`: Gestor de captura e inventario en tiempo real.
-*   `components/ProcessAnalysis`: Dashboard de desglose técnico y módulos de ingeniería.
-*   `components/AutomationRoadmap`: Visualizador de recomendaciones estratégicas.
-*   `components/FinalReport`: Resumen ejecutivo y punto de exportación.
-
-## 5. Diseño de Base de Datos
-
-El esquema se centra en la relación Sesión-Actividad para permitir múltiples análisis independientes.
-
-*   **Sessions**: Almacena metadatos de la empresa, departamento y parámetros de costos.
-*   **Activities**: Almacena el nombre, clasificación ASME, tiempos de ciclo, volumen diario y carga anual.
-*   **Analysis**: (Cache/Persistente) Almacena las recomendaciones estratégicas vinculadas a la sesión.
+*   **Paso 1-2**: Configuración de sesión y captura de datos distribuida.
+*   **Paso 3**: Inventario dinámico con edición en tiempo real.
+*   **Paso 4**: Dashboard modular con tarjetas de ingeniería y hoja de ruta.
+*   **Paso 5**: Certificación final y punto de exportación.

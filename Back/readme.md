@@ -1,5 +1,12 @@
 # Servicio Backend ASME Industrial
 
+## Índice de Documentación
+*   [Volver al Inicio](../README.md)
+*   [Arquitectura Detallada](../ARCHITECTURE.md)
+*   [Manual del Frontend](../frontend/README.md)
+
+---
+
 ## Funcionalidad Principal
 El servicio backend proporciona la inteligencia computacional y analítica para la plataforma ASME. Gestiona la persistencia de datos, la clasificación de procesos impulsada por IA y la generación de informes técnicos.
 
