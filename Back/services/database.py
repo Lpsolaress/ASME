@@ -8,6 +8,7 @@ load_dotenv()
 class DatabaseService:
     def __init__(self):
         self.db_url = os.getenv("DATABASE_URL")
+        # Ensure fresh connection on init
         if not self.db_url or "[YOUR-PASSWORD]" in self.db_url:
             print("Warning: DATABASE_URL not configured correctly in .env")
     
@@ -19,7 +20,7 @@ class DatabaseService:
             print(f"Error connecting to Postgres: {e}")
             return None
 
-    def create_session(self, company_name: str, department: str, task_name: str = "", monthly_agreement: float = 0, minutes_per_hour: float = 60):
+    def create_session(self, company_name: str, department: str, task_name: str = "", monthly_agreement: float = 0, minutes_per_hour: float = 60, staff_count: int = 1, hourly_cost: float = 0):
         conn = self._get_connection()
         if not conn: return None
         
@@ -27,11 +28,11 @@ class DatabaseService:
             with conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     query = """
-                    INSERT INTO sessions (company_name, department, task_name, monthly_agreement, minutes_per_hour)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO sessions (company_name, department, task_name, monthly_agreement, minutes_per_hour, staff_count, hourly_cost)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING *;
                     """
-                    cur.execute(query, (company_name, department, task_name, monthly_agreement, minutes_per_hour))
+                    cur.execute(query, (company_name, department, task_name, monthly_agreement, minutes_per_hour, staff_count, hourly_cost))
                     return cur.fetchone()
         finally:
             conn.close()
@@ -106,5 +107,36 @@ class DatabaseService:
                 with conn.cursor() as cur:
                     cur.execute("DELETE FROM activities WHERE id = %s;", (activity_id,))
                     return cur.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_activity(self, activity_id: str, activity_data: dict):
+        conn = self._get_connection()
+        if not conn: return None
+        
+        try:
+            time_unit = activity_data.get("time_unit", 0)
+            volume_daily = activity_data.get("volume_daily", 0)
+            annual_minutes = time_unit * volume_daily * 20 * 12
+            
+            with conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    query = """
+                    UPDATE activities 
+                    SET name = %s, category = %s, classification = %s, 
+                        time_unit = %s, volume_daily = %s, annual_minutes = %s
+                    WHERE id = %s
+                    RETURNING *;
+                    """
+                    cur.execute(query, (
+                        activity_data.get("name"),
+                        activity_data.get("category"),
+                        activity_data.get("classification"),
+                        time_unit,
+                        volume_daily,
+                        annual_minutes,
+                        activity_id
+                    ))
+                    return cur.fetchone()
         finally:
             conn.close()

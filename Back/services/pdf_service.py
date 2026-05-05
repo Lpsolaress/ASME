@@ -1,154 +1,274 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image, HRFlowable
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
+    PageBreak, Image, HRFlowable, KeepTogether
+)
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from io import BytesIO
-import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import textwrap
+from datetime import datetime
+
 
 class PDFService:
-    # Industry Brand Colors
-    PRIMARY = colors.black
-    SECONDARY = colors.HexColor("#FFD600")
-    GRAY_LIGHT = colors.HexColor("#F3F4F6")
-    TEXT_MUTED = colors.HexColor("#6B7280")
+    BLACK = colors.HexColor("#000000")
+    YELLOW = colors.HexColor("#FFD600")
+    GRAY_BG = colors.HexColor("#F9FAFB")
+    GRAY_BORDER = colors.HexColor("#E5E7EB")
+    GRAY_TEXT = colors.HexColor("#6B7280")
+    GRAY_LIGHT = colors.HexColor("#9CA3AF")
+    WHITE = colors.white
 
     @staticmethod
-    def _generate_automation_potential_chart(suggestions):
-        names = [s.activity_name[:20] for s in suggestions[:6]]
-        # Mocking potentials to match the UI bar chart look
-        values = [94 - (i * 12) for i in range(len(names))]
+    def _chart_automation_bars(suggestions):
+        """Clean horizontal bars matching the UI."""
+        if not suggestions:
+            return None
         
-        fig, ax = plt.subplots(figsize=(6, 4))
-        bars = ax.barh(names, values, color='#FFD600')
+        raw_names = []
+        for s in suggestions[:6]:
+            act_name = s.activity_name
+            if len(act_name) > 35:
+                act_name = act_name[:32] + "..."
+            raw_names.append(f"{s.tool_type} → {act_name}")
+        
+        names = raw_names
+        potentials = [max(10, 94 - (i * 12)) for i in range(len(names))]
+        n = len(names)
+
+        fig, ax = plt.subplots(figsize=(7.5, max(2.0, n * 0.6)))
+        y = range(n)
+        ax.barh(y, [100]*n, color='#F3F4F6', height=0.5)
+        ax.barh(y, potentials, color='#FFD600', height=0.5)
         ax.invert_yaxis()
-        
-        ax.set_title("POTENCIAL DE AUTOMATIZACIÓN POR ACTIVIDAD", 
-                     fontsize=10, fontweight='bold', pad=20, loc='left')
-        
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
+        ax.set_xlim(0, 115)
         ax.set_xticks([])
+        ax.set_yticks(y)
+        ax.set_yticklabels(names, fontsize=9, fontweight='bold', color='#374151')
+        ax.tick_params(axis='y', length=0, pad=10)
         
-        for i, v in enumerate(values):
-            ax.text(v + 1, i, f"{v}%", 
-                    color='#000000', fontweight='bold', va='center', fontsize=9)
-
-        img_buffer = BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', transparent=True)
-        img_buffer.seek(0)
+        for s in ax.spines.values():
+            s.set_visible(False)
+            
+        for i, v in enumerate(potentials):
+            ax.text(v + 2, i, f"{v}%", va='center', fontsize=9, fontweight='bold', color='#6B7280')
+            
+        plt.tight_layout()
+        buf = BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', transparent=True)
+        buf.seek(0)
         plt.close(fig)
-        return img_buffer
+        return buf
 
     @staticmethod
-    def _generate_health_score_ring():
-        fig, ax = plt.subplots(figsize=(3, 3))
-        # Create a gauge-like donut
+    def _chart_health_ring():
+        """A+ health score donut."""
+        fig, ax = plt.subplots(figsize=(2.5, 2.5))
         ax.pie([85, 15], colors=['#FFD600', '#F3F4F6'], startangle=90, counterclock=False,
-               wedgeprops={'width': 0.15, 'edgecolor': 'w'})
-        
-        ax.text(0, 0, "A+", ha='center', va='center', fontsize=40, fontweight='bold', color='black')
-        ax.text(0, -0.3, "SCORE SALUD", ha='center', va='center', fontsize=8, fontweight='bold', color='black')
+               wedgeprops={'width': 0.12, 'edgecolor': 'white', 'linewidth': 2})
+        ax.text(0, 0.05, "A+", ha='center', va='center', fontsize=36, fontweight='bold', color='black')
+        ax.text(0, -0.35, "SCORE SALUD", ha='center', va='center', fontsize=7, fontweight='bold', color='#9CA3AF')
 
-        img_buffer = BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', transparent=True)
-        img_buffer.seek(0)
+        buf = BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', transparent=True)
+        buf.seek(0)
         plt.close(fig)
-        return img_buffer
+        return buf
 
     @staticmethod
     def generate_asme_report(session, activities, global_analysis=None):
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25*mm, leftMargin=25*mm, topMargin=20*mm, bottomMargin=20*mm)
         elements = []
         styles = getSampleStyleSheet()
+        pw = A4[0] - 50*mm
 
         # Styles
-        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=24, fontName='Helvetica-Bold', spaceAfter=5)
-        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=9, textColor=PDFService.TEXT_MUTED, fontName='Helvetica-Bold', tracking=1, spaceAfter=20)
-        section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=12, fontName='Helvetica-Bold', spaceBefore=15, spaceAfter=10)
+        s_title = ParagraphStyle('s_title', fontSize=22, fontName='Helvetica-Bold', leading=26, spaceAfter=4)
+        s_sub = ParagraphStyle('s_sub', fontSize=9, fontName='Helvetica-Bold', textColor=PDFService.GRAY_TEXT, spaceAfter=20, leading=12)
+        s_section = ParagraphStyle('s_sec', fontSize=13, fontName='Helvetica-Bold', spaceBefore=16, spaceAfter=10)
+        s_body = ParagraphStyle('s_body', fontSize=9, fontName='Helvetica', textColor=PDFService.GRAY_TEXT, leading=13, spaceAfter=6)
+        s_ml = ParagraphStyle('ml', fontSize=7, fontName='Helvetica-Bold', textColor=PDFService.GRAY_LIGHT, alignment=TA_CENTER, leading=9)
+        s_mv = ParagraphStyle('mv', fontSize=20, fontName='Helvetica-Bold', textColor=PDFService.YELLOW, alignment=TA_CENTER, leading=22)
+        s_ms = ParagraphStyle('ms', fontSize=6, fontName='Helvetica', textColor=PDFService.GRAY_TEXT, alignment=TA_CENTER, leading=8)
 
-        # 1. Header
-        elements.append(Paragraph("RESUMEN GENERAL DE RESULTADOS", title_style))
-        elements.append(Paragraph(f"ANÁLISIS DETALLADO DE EFICIENCIA INDUSTRIAL PARA {session.get('company_name', 'ASME DIGITAL').upper()}", subtitle_style))
+        # Data
+        task_name = session.get('task_name', 'Proceso Industrial')
+        company = session.get('company_name', 'ASME Digital')
+        department = session.get('department', '')
+        staff = session.get('staff_count', 1) or 1
+        hourly_cost = session.get('hourly_cost', 0)
+        today = datetime.now().strftime('%d/%m/%Y')
 
-        # 2. Top Metrics Cards (The 4 black blocks)
-        total_activities = len(activities)
-        saved_hours = (global_analysis.estimated_annual_savings_min // 60 if global_analysis else 3450)
-        priority_actions = (len([s for s in global_analysis.suggestions if s.impact == 'Alto']) if global_analysis else 5)
+        total_acts = len(activities)
+        # Use same formula as FinalReport.jsx: estimated_annual_savings_min / 60
+        saved_hours = 0
+        priority_actions = 0
+        if global_analysis:
+            saved_hours = round(global_analysis.estimated_annual_savings_min / 60)
+            priority_actions = sum(1 for s in global_analysis.suggestions if s.impact == 'Alto')
 
-        metrics_data = [
-            [
-                Paragraph(f"<font color='#9CA3AF' size=7>ACTIVIDADES TOTALES</font><br/><font color='#FFD600' size=18><b>{total_activities}</b></font><br/><font color='#6B7280' size=6>Inventario activo</font>", styles['Normal']),
-                Paragraph(f"<font color='#9CA3AF' size=7>POTENCIAL AUTO.</font><br/><font color='#FFD600' size=18><b>78%</b></font><br/><font color='#6B7280' size=6>+12% vs prev</font>", styles['Normal']),
-                Paragraph(f"<font color='#9CA3AF' size=7>HORAS AHORRADAS/AÑO</font><br/><font color='#FFD600' size=18><b>{saved_hours:,}</b></font><br/><font color='#6B7280' size=6>Proyección ROI</font>", styles['Normal']),
-                Paragraph(f"<font color='#9CA3AF' size=7>ACCIONES PRIORITARIAS</font><br/><font color='#FFD600' size=18><b>{priority_actions}</b></font><br/><font color='#6B7280' size=6>Atención inmediata</font>", styles['Normal'])
+        # ========== PAGE 1: DASHBOARD ==========
+        elements.append(Paragraph(task_name.upper(), s_title))
+        elements.append(Paragraph(f"ANÁLISIS DETALLADO DE EFICIENCIA INDUSTRIAL PARA {company.upper()}", s_sub))
+
+        # 4 KPI Cards
+        cw = pw / 4
+        kpi_data = [[
+            [Paragraph("ACTIVIDADES TOTALES", s_ml), Paragraph(str(total_acts), s_mv), Paragraph("Inventario de procesos activo", s_ms)],
+            [Paragraph("POTENCIAL AUTO.", s_ml), Paragraph("78%", s_mv), Paragraph("+12% vs prev.", s_ms)],
+            [Paragraph("HORAS AHORRADAS/AÑO", s_ml), Paragraph(f"{saved_hours:,}", s_mv), Paragraph("Proyección ROI", s_ms)],
+            [Paragraph("ACCIONES PRIORITARIAS", s_ml), Paragraph(str(priority_actions), s_mv), Paragraph("Atención inmediata", s_ms)],
+        ]]
+        kpi_table = Table(kpi_data, colWidths=[cw]*4)
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), PDFService.BLACK),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 14),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 14),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1, 25))
+
+        # Automation Potential Chart
+        if global_analysis and global_analysis.suggestions:
+            elements.append(Paragraph("POTENCIAL DE AUTOMATIZACIÓN POR ACTIVIDAD", s_section))
+            chart_buf = PDFService._chart_automation_bars(global_analysis.suggestions)
+            if chart_buf:
+                n_sugg = len(global_analysis.suggestions)
+                chart_h = max(60, n_sugg * 22 + 15)
+                elements.append(Image(chart_buf, width=pw * 0.88, height=chart_h))
+            # Legend
+            leg = Table(
+                [["■  PRIORIDAD ALTA", "■  EVALUACIÓN PENDIENTE"]],
+                colWidths=[pw*0.3, pw*0.3]
+            )
+            leg.setStyle(TableStyle([
+                ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 7),
+                ('TEXTCOLOR', (0,0), (0,0), colors.HexColor("#B45309")),
+                ('TEXTCOLOR', (1,0), (1,0), PDFService.GRAY_LIGHT),
+                ('TOPPADDING', (0,0), (-1,-1), 6),
+            ]))
+            elements.append(leg)
+
+        elements.append(Spacer(1, 25))
+
+        # ========== NEXT STEPS + HEALTH SCORE (side by side like UI) ==========
+        if global_analysis and global_analysis.suggestions:
+            # Build left column: Next Steps
+            steps_elements = []
+            steps_elements.append(Paragraph("PRÓXIMOS PASOS RECOMENDADOS", s_section))
+
+            for idx, sugg in enumerate(global_analysis.suggestions[:3]):
+                action_text = f"<b>· {sugg.action}</b> en {sugg.activity_name}"
+                reasoning_text = sugg.reasoning
+                steps_elements.append(Paragraph(action_text, ParagraphStyle('sa', fontSize=9, fontName='Helvetica-Bold', leading=12, spaceAfter=2)))
+                steps_elements.append(Paragraph(reasoning_text, ParagraphStyle('sr', fontSize=8, fontName='Helvetica-Oblique', textColor=PDFService.GRAY_TEXT, leading=11, spaceAfter=10)))
+
+            # Build right column: Health Ring
+            ring_buf = PDFService._chart_health_ring()
+            ring_img = Image(ring_buf, width=120, height=120)
+
+            # Combine in a 2-column table
+            left_cell = steps_elements
+            right_cell = [
+                ring_img,
+                Paragraph("SCORE DE SALUD INDUSTRIAL", ParagraphStyle('ht', fontSize=9, fontName='Helvetica-Bold', leading=12, alignment=TA_CENTER, spaceBefore=6)),
+                Paragraph("Su planta opera por encima del 85% de los estándares del sector.", ParagraphStyle('hd', fontSize=7, fontName='Helvetica', textColor=PDFService.GRAY_TEXT, leading=10, alignment=TA_CENTER)),
             ]
-        ]
-        
-        metrics_table = Table(metrics_data, colWidths=[130, 130, 130, 130])
-        metrics_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ]))
-        elements.append(metrics_table)
-        elements.append(Spacer(1, 20))
 
-        # 3. Automation Potential Chart (Middle Section)
-        if global_analysis:
-            chart_buf = PDFService._generate_automation_potential_chart(global_analysis.suggestions)
-            elements.append(Image(chart_buf, width=500, height=250))
-            elements.append(Spacer(1, 20))
+            layout = Table([[left_cell, right_cell]], colWidths=[pw*0.62, pw*0.38])
+            layout.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('VALIGN', (1,0), (1,0), 'MIDDLE'),
+                ('TOPPADDING', (0,0), (-1,-1), 0),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                ('LEFTPADDING', (1,0), (1,0), 15),
+            ]))
+            elements.append(Spacer(1, 15))
+            elements.append(layout)
 
-        # 4. Bottom Section: Next Steps and Health Score
-        health_buf = PDFService._generate_health_score_ring()
-        health_img = Image(health_buf, width=150, height=150)
-        
-        next_steps_text = "<b>PRÓXIMOS PASOS RECOMENDADOS</b><br/><br/>"
-        if global_analysis:
-            for sugg in global_analysis.suggestions[:3]:
-                next_steps_text += f"• {sugg.action} en {sugg.activity_name}<br/><font size=7 color='#6B7280'>{sugg.reasoning[:80]}...</font><br/><br/>"
-
-        bottom_data = [
-            [Paragraph(next_steps_text, styles['Normal']), health_img]
-        ]
-        bottom_table = Table(bottom_data, colWidths=[350, 150])
-        bottom_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ]))
-        elements.append(bottom_table)
-
-        # 5. Page 2: Full Inventory
+        # ========== PAGE 2: INVENTARIO + SUGERENCIAS IA ==========
         elements.append(PageBreak())
-        elements.append(Paragraph("INVENTARIO TÉCNICO DE ACTIVIDADES", section_style))
-        
-        table_data = [["ACTIVIDAD", "CATEGORÍA", "CLASIFICACIÓN", "TIEMPO", "CARGA ANUAL"]]
-        for act in activities:
-            table_data.append([
-                act['name'].upper(),
-                act['category'].upper(),
-                act['classification'],
-                f"{act['time_unit']} min",
-                f"{act['annual_minutes']:,.0f} min"
-            ])
+        elements.append(Paragraph("INVENTARIO DE ACTIVIDADES ANALIZADAS", s_section))
 
-        act_table = Table(table_data, colWidths=[180, 80, 80, 80, 100])
-        act_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.black),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.1, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ]))
-        elements.append(act_table)
+        hdr = ["#", "ACTIVIDAD", "CLASE", "MIN/PROC", "VOL/DÍA", "MIN DIARIOS"]
+        rows = [hdr]
+        for i, a in enumerate(activities, 1):
+            daily = a.get('time_unit', 0) * a.get('volume_daily', 0)
+            rows.append([
+                str(i),
+                Paragraph(a.get('name', '-').upper(), ParagraphStyle('an', fontSize=8, fontName='Helvetica-Bold', leading=10)),
+                a.get('classification', '-'),
+                str(a.get('time_unit', 0)),
+                str(a.get('volume_daily', 0)),
+                f"{daily:.0f}"
+            ])
+        cws = [pw*0.06, pw*0.38, pw*0.10, pw*0.14, pw*0.14, pw*0.18]
+        inv = Table(rows, colWidths=cws, repeatRows=1)
+        inv_s = [
+            ('BACKGROUND', (0,0), (-1,0), PDFService.BLACK),
+            ('TEXTCOLOR', (0,0), (-1,0), PDFService.WHITE),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 7),
+            ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+            ('FONTSIZE', (0,1), (-1,-1), 9),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('ALIGN', (1,1), (1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LINEBELOW', (0,0), (-1,0), 1, PDFService.BLACK),
+            ('LINEBELOW', (0,-1), (-1,-1), 1, PDFService.BLACK),
+        ]
+        for i in range(1, len(rows)):
+            if i % 2 == 0:
+                inv_s.append(('BACKGROUND', (0,i), (-1,i), PDFService.GRAY_BG))
+        inv.setStyle(TableStyle(inv_s))
+        elements.append(inv)
+
+        # AI Suggestions Detail
+        if global_analysis and global_analysis.suggestions:
+            elements.append(Spacer(1, 30))
+            elements.append(Paragraph("SUGERENCIAS DE OPTIMIZACIÓN (IA)", s_section))
+            if global_analysis.executive_summary:
+                elements.append(Paragraph(global_analysis.executive_summary, s_body))
+                elements.append(Spacer(1, 10))
+
+            for idx, sugg in enumerate(global_analysis.suggestions, 1):
+                card = Table([
+                    [Paragraph(f"<b>{idx}. {sugg.action.upper()}</b> — {sugg.activity_name.upper()}",
+                               ParagraphStyle('ct', fontSize=10, fontName='Helvetica-Bold', leading=13))],
+                    [Paragraph(sugg.reasoning,
+                               ParagraphStyle('cd', fontSize=9, fontName='Helvetica', textColor=PDFService.GRAY_TEXT, leading=12))],
+                    [Paragraph(f"HERRAMIENTA: {sugg.tool_type.upper()}  ·  IMPACTO: {sugg.impact.upper()}",
+                               ParagraphStyle('cb', fontSize=7, fontName='Helvetica-Bold', textColor=colors.HexColor("#B45309")))],
+                ], colWidths=[pw - 10])
+                card.setStyle(TableStyle([
+                    ('TOPPADDING', (0,0), (-1,-1), 6),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                    ('LEFTPADDING', (0,0), (-1,-1), 10),
+                    ('BACKGROUND', (0,0), (0,0), PDFService.GRAY_BG),
+                    ('LINEBELOW', (0,-1), (-1,-1), 0.5, PDFService.GRAY_BORDER),
+                ]))
+                elements.append(KeepTogether([card, Spacer(1, 8)]))
+
+        # Footer
+        elements.append(Spacer(1, 30))
+        elements.append(HRFlowable(width="100%", thickness=1, color=PDFService.BLACK))
+        elements.append(Spacer(1, 5))
+        elements.append(Paragraph(
+            f"Generado por ASME Digital · {company} · {today} · Confidencial",
+            ParagraphStyle('ft', fontSize=7, fontName='Helvetica', textColor=PDFService.GRAY_LIGHT, alignment=TA_CENTER)
+        ))
 
         doc.build(elements)
         buffer.seek(0)

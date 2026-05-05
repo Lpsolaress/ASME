@@ -1,21 +1,31 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useState, useRef } from 'react';
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+  Building2, 
+  ArrowRight, 
+  Factory,
+  Loader2,
+  Mic,
+  ArrowLeft,
+  Edit3,
+  Check,
+  Target
+} from "lucide-react";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Building2, ChevronRight, Loader2, Mic, ArrowLeft, ArrowRight, Check, Edit3 } from "lucide-react";
 
 const formSchema = z.object({
   company_name: z.string().min(2, { message: "Requerido" }),
@@ -26,11 +36,13 @@ const formSchema = z.object({
 });
 
 export default function SessionSetup({ onSessionCreated }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // 1: Manual Form, 2: Voice Capture
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [initialClassification, setInitialClassification] = useState("VA");
+  
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
@@ -40,7 +52,7 @@ export default function SessionSetup({ onSessionCreated }) {
       company_name: "",
       department: "",
       task_name: "",
-      monthly_agreement: 0,
+      monthly_agreement: 160,
       minutes_per_hour: 60,
     },
   });
@@ -79,226 +91,217 @@ export default function SessionSetup({ onSessionCreated }) {
         method: 'POST',
         body: formData,
       });
-      if (!response.ok) throw new Error('Transcription failed');
       const data = await response.json();
       setTranscription(data.text);
     } catch (err) {
-      setTranscription("Error en la transcripción.");
+      console.error(err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleFinalSubmit = async (transcriptionValue = "") => {
+  const handleFinalSubmit = async (values) => {
     setIsLoading(true);
-    const values = form.getValues();
     try {
+      const payload = {
+        ...values,
+        initial_classification: initialClassification,
+        staff_count: 1,
+        hourly_cost: 0
+      };
       const response = await fetch('http://localhost:8000/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, initial_transcription: transcriptionValue || transcription }),
+        body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed');
-      const sessionData = await response.json();
-      onSessionCreated({ 
-        ...sessionData, 
-        initial_transcription: transcriptionValue || transcription 
-      });
-    } catch (err) {
-      alert("Error al finalizar.");
+      const data = await response.json();
+      if (data) onSessionCreated(data);
+    } catch (error) {
+      console.error("Error creating session:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Stepper Industrial Updated */}
-      <div className="flex items-center justify-between px-16 relative">
-        <div className="absolute top-5 left-24 right-24 h-[2px] bg-gray-100 -z-10" />
-        
-        {[
-          { step: 1, label: 'Inicio', active: step >= 1, completed: step > 1 },
-          { step: 2, label: 'Captura', active: step >= 2, completed: step > 2 },
-          { step: 3, label: 'Análisis', active: step >= 3, completed: step > 3 },
-          { step: 4, label: 'Reporte', active: step >= 4, completed: step > 4 },
-        ].map((s) => (
-          <div key={s.step} className="flex flex-col items-center space-y-3">
-            <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-500 ${
-              s.completed ? 'bg-black border-black text-white' : 
-              s.active ? 'bg-secondary border-primary text-primary' : 'bg-[#F3F4F6] border-transparent text-[#9CA3AF]'
-            }`}>
-              {s.completed ? <Check className="w-5 h-5" /> : s.step}
-            </div>
-            <span className={`text-[11px] font-bold tracking-tight transition-colors duration-500 ${s.active || s.completed ? 'text-primary' : 'text-[#9CA3AF]'}`}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <Card className="border border-gray-200 rounded-2xl shadow-sm bg-white overflow-hidden max-w-3xl mx-auto min-h-[500px] flex flex-col">
+    <div className="max-w-4xl mx-auto py-12 px-6 space-y-12">
+      <Card className="max-w-2xl mx-auto border border-gray-200 rounded-[24px] shadow-sm bg-white overflow-hidden min-h-[600px] flex flex-col">
         {step === 1 ? (
           <>
-            <CardHeader className="border-b border-gray-50 px-8 py-6 flex flex-row items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <CardTitle className="text-lg font-black tracking-tight text-primary uppercase">Detalles de la Empresa</CardTitle>
+            <CardHeader className="px-8 pt-8 pb-4 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <CardTitle className="text-base font-medium text-gray-700">Detalles de la Empresa</CardTitle>
                 <button 
-                  onClick={() => setStep(2)}
-                  className="p-2 hover:bg-secondary rounded-full transition-colors text-primary/40 hover:text-primary"
-                  title="Captura por voz"
+                    onClick={() => setStep(2)}
+                    className="p-2 hover:bg-secondary rounded-full transition-colors text-primary/40 hover:text-primary group"
                 >
-                  <Mic className="w-5 h-5" />
+                    <Mic className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </button>
               </div>
-              <Building2 className="w-5 h-5 text-gray-300" />
+              <Factory className="w-5 h-5 text-gray-300" />
             </CardHeader>
-            <CardContent className="p-8 space-y-8 flex-1">
+            <CardContent className="px-8 pb-8 space-y-8 flex-1">
               <p className="text-sm text-gray-500 font-medium leading-relaxed max-w-md">
                 Por favor, proporcione la información básica para inicializar el sistema de análisis industrial.
               </p>
+
               <Form {...form}>
                 <form className="space-y-6">
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="company_name" render={({ field }) => (
-                      <FormItem className="space-y-1.5">
-                        <FormLabel className="text-[11px] uppercase font-black tracking-widest text-primary/70">Nombre de empresa</FormLabel>
+                        <FormItem className="space-y-2">
+                        <FormLabel className="text-sm font-semibold text-gray-700">Nombre de empresa</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Ej. Sistemas Industriales Avanzados" 
-                            {...field} 
-                            className="h-14 rounded-full border-2 border-black px-6 focus:ring-0 focus:border-secondary transition-all font-bold" 
-                          />
+                            <Input placeholder="Ej. Sistemas Industriales Avanzados" {...field} className="h-12 border-gray-200 rounded-xl px-4 font-medium" />
                         </FormControl>
-                      </FormItem>
+                        </FormItem>
                     )} />
+
                     <FormField control={form.control} name="department" render={({ field }) => (
-                      <FormItem className="space-y-1.5">
-                        <FormLabel className="text-[11px] uppercase font-black tracking-widest text-primary/70">Departamento</FormLabel>
+                        <FormItem className="space-y-2">
+                        <FormLabel className="text-sm font-semibold text-gray-700">Departamento</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Ej. Ingeniería de Producción" 
-                            {...field} 
-                            className="h-14 rounded-full border-2 border-black px-6 focus:ring-0 focus:border-secondary transition-all font-bold" 
-                          />
+                            <Input placeholder="Ej. Ingeniería de Producción" {...field} className="h-12 border-gray-200 rounded-xl px-4 font-medium" />
                         </FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="task_name" render={({ field }) => (
-                      <FormItem className="space-y-1.5">
-                        <FormLabel className="text-[11px] uppercase font-black tracking-widest text-primary/70">Tarea / Proceso a Analizar</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Ej. Proceso de Facturación Mensual" 
-                            {...field} 
-                            className="h-14 rounded-full border-2 border-black px-6 focus:ring-0 focus:border-secondary transition-all font-bold" 
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )} />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField control={form.control} name="monthly_agreement" render={({ field }) => (
-                        <FormItem className="space-y-1.5">
-                          <FormLabel className="text-[11px] uppercase font-black tracking-widest text-primary/70">Convenio mensual</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                type="number" 
-                                {...field} 
-                                className="h-14 rounded-full border-2 border-black px-6 pr-12 focus:ring-0 focus:border-secondary transition-all font-bold" 
-                              />
-                              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">MIN</span>
-                            </div>
-                          </FormControl>
                         </FormItem>
-                      )} />
-                      <FormField control={form.control} name="minutes_per_hour" render={({ field }) => (
-                        <FormItem className="space-y-1.5">
-                          <FormLabel className="text-[11px] uppercase font-black tracking-widest text-primary/70">Minutos por hora</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                type="number" 
-                                {...field} 
-                                className="h-14 rounded-full border-2 border-black px-6 pr-12 focus:ring-0 focus:border-secondary transition-all font-bold" 
-                              />
-                              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">M/H</span>
-                            </div>
-                          </FormControl>
-                        </FormItem>
-                      )} />
+                    )} />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div className="md:col-span-2">
+                        <FormField control={form.control} name="task_name" render={({ field }) => (
+                            <FormItem className="space-y-2">
+                            <FormLabel className="text-sm font-semibold text-gray-700">Proceso / Tarea a Analizar</FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Input placeholder="Ej. Proceso de Facturación Mensual" {...field} className="h-12 border-gray-200 rounded-xl px-4 pl-10 font-medium" />
+                                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                                </div>
+                            </FormControl>
+                            </FormItem>
+                        )} />
                     </div>
+                    <div className="space-y-2">
+                        <FormLabel className="text-sm font-semibold text-gray-700">Clasificación Inicial</FormLabel>
+                        <div className="flex gap-2">
+                            {["VA", "NVA"].map(val => (
+                                <button 
+                                    key={val}
+                                    type="button"
+                                    onClick={() => setInitialClassification(val)}
+                                    className={`flex-1 h-12 font-black uppercase tracking-widest text-[10px] rounded-xl border-2 transition-all ${
+                                        initialClassification === val 
+                                        ? 'bg-black border-black text-white shadow-md' 
+                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                                    }`}
+                                >
+                                    {val}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="monthly_agreement" render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel className="text-sm font-semibold text-gray-700">Número de tareas</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input type="number" {...field} className="h-12 border-gray-200 rounded-xl px-4 pr-12 font-medium" />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300 tracking-widest">UND</span>
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="minutes_per_hour" render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel className="text-sm font-semibold text-gray-700">Minutos por cada tarea</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input type="number" {...field} className="h-12 border-gray-200 rounded-xl px-4 pr-12 font-medium" />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300 tracking-widest">MIN</span>
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )} />
                   </div>
                 </form>
               </Form>
+              <div className="pt-6 flex justify-end">
+                <Button 
+                  onClick={form.handleSubmit(handleFinalSubmit)}
+                  disabled={isLoading}
+                  className="bg-secondary hover:bg-secondary/90 text-black px-10 h-12 rounded-xl font-bold gap-2"
+                >
+                  Continuar <ArrowRight className="w-5 h-5" />
+                </Button>
+              </div>
             </CardContent>
-            <div className="p-8 bg-gray-50/50 flex justify-end">
-              <Button 
-                onClick={form.handleSubmit(() => handleFinalSubmit())} 
-                disabled={isLoading}
-                className="bg-black text-white font-black uppercase text-xs tracking-widest px-10 h-12 rounded-xl hover:bg-primary hover:text-secondary gap-2 group"
-              >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continuar"} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
           </>
         ) : (
-          <>
-            <CardHeader className="px-8 py-12 text-center space-y-4">
-              <CardTitle className="text-4xl font-black tracking-tighter uppercase text-primary">Paso 2: Captura de Actividad</CardTitle>
-              <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Describe la actividad en voz alta</p>
-            </CardHeader>
-            <CardContent className="px-8 pb-8 flex-1 flex flex-col items-center space-y-10">
-              <div className="flex flex-col items-center space-y-4">
+          <CardContent className="px-8 py-12 flex-1 flex flex-col items-center justify-between space-y-12 animate-in zoom-in-95 duration-500">
+            <div className="text-center space-y-4">
+                <CardTitle className="text-4xl font-black tracking-tight text-black uppercase italic">Paso 2: Captura de Actividad</CardTitle>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Describe la actividad en voz alta</p>
+            </div>
+
+            <div className="flex flex-col items-center space-y-6">
                 <button
                   onMouseDown={startRecording} onMouseUp={stopRecording}
                   onTouchStart={startRecording} onTouchEnd={stopRecording}
-                  className={`w-32 h-32 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                    isRecording ? "bg-secondary border-primary voice-pulse scale-110" : "bg-secondary/20 border-gray-100 hover:bg-secondary/40"
+                  className={`w-36 h-36 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
+                    isRecording ? "bg-secondary border-black scale-110 shadow-2xl" : "bg-secondary/20 border-gray-100 hover:bg-secondary/40"
                   }`}
                 >
-                  <Mic className={`w-12 h-12 ${isRecording ? "text-primary" : "text-gray-400"}`} />
+                  <Mic className={`w-16 h-16 ${isRecording ? "text-black" : "text-gray-300"}`} />
                 </button>
-                <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isRecording ? "text-primary animate-pulse" : "text-gray-300"}`}>
+                <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${isRecording ? "text-black animate-pulse" : "text-gray-300"}`}>
                   {isRecording ? "ESCUCHANDO..." : "MANTENER PARA HABLAR"}
                 </p>
-              </div>
+            </div>
 
-              <div className="w-full max-w-xl space-y-4">
-                <div className="border border-gray-200 rounded-xl p-6 bg-gray-50/30 relative min-h-[140px]">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Transcripción en tiempo real</span>
-                    <div className="flex items-center space-x-2">
-                       <div className={`w-2 h-2 rounded-full ${isRecording ? "bg-red-500 animate-pulse" : "bg-gray-300"}`} />
-                       <span className={`text-[9px] font-black uppercase tracking-widest ${isRecording ? "text-red-500" : "text-gray-400"}`}>LIVE</span>
+            <div className="w-full space-y-4">
+                <div className="border border-gray-200 rounded-2xl p-6 bg-gray-50/50 relative min-h-[140px]">
+                    <div className="flex justify-between items-center mb-4">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Transcripción en tiempo real</span>
+                        <div className="flex items-center space-x-2">
+                           <div className={`w-2 h-2 rounded-full ${isRecording ? "bg-red-500 animate-pulse" : "bg-gray-300"}`} />
+                           <span className={`text-[9px] font-black uppercase tracking-widest ${isRecording ? "text-red-500 font-black" : "text-gray-400"}`}>LIVE</span>
+                        </div>
                     </div>
-                  </div>
-                  <p className={`text-sm font-medium leading-relaxed italic ${transcription ? "text-primary" : "text-gray-300"}`}>
-                    {isProcessing ? "Procesando audio..." : transcription ? `"${transcription}"` : "Tu voz aparecerá aquí..."}
-                  </p>
-                  <Edit3 className="absolute bottom-4 right-4 w-4 h-4 text-gray-300 hover:text-primary cursor-pointer" />
+                    <p className={`text-sm font-medium leading-relaxed italic ${transcription ? "text-black" : "text-gray-300"}`}>
+                        {isProcessing ? "Procesando audio..." : transcription ? `"${transcription}"` : "Tu voz aparecerá aquí..."}
+                    </p>
+                    <Edit3 className="absolute bottom-4 right-4 w-4 h-4 text-gray-300 hover:text-black cursor-pointer" />
                 </div>
                 <button 
                   onClick={() => setStep(1)}
-                  className="text-[10px] font-black uppercase tracking-widest text-primary/40 hover:text-primary mx-auto block underline underline-offset-4"
+                  className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-black mx-auto block underline underline-offset-4 transition-colors"
                 >
                   o escribe aquí
                 </button>
-              </div>
-            </CardContent>
-            <div className="p-8 border-t border-gray-50 flex justify-between items-center">
-              <Button variant="outline" onClick={() => setStep(1)} className="border-gray-200 rounded-xl px-8 h-12 font-black uppercase text-xs tracking-widest gap-2">
-                <ArrowLeft className="w-4 h-4" /> Anterior
-              </Button>
-              <Button 
-                onClick={handleFinalSubmit}
-                disabled={isLoading || (!transcription && !isProcessing)}
-                className="bg-black text-white rounded-xl px-12 h-12 font-black uppercase text-xs tracking-widest gap-2 hover:bg-primary hover:text-secondary transition-all"
-              >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continuar"} <ArrowRight className="w-4 h-4" />
-              </Button>
             </div>
-          </>
+
+            <div className="w-full flex justify-between items-center">
+                <Button variant="outline" onClick={() => setStep(1)} className="border-gray-200 rounded-xl px-8 h-12 font-bold gap-2 text-gray-500">
+                    <ArrowLeft className="w-4 h-4" /> ANTERIOR
+                </Button>
+                <Button 
+                    onClick={() => {
+                        const values = form.getValues();
+                        if (!values.task_name && transcription) {
+                            values.task_name = transcription;
+                        }
+                        handleFinalSubmit(values);
+                    }}
+                    disabled={isLoading || !transcription}
+                    className="bg-black text-white rounded-xl px-12 h-12 font-bold tracking-widest gap-2 hover:bg-secondary hover:text-black transition-all"
+                >
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "CONTINUAR"} <ArrowRight className="w-4 h-4" />
+                </Button>
+            </div>
+          </CardContent>
         )}
       </Card>
     </div>

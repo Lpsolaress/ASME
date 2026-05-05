@@ -15,7 +15,8 @@ import {
   ChevronRight,
   TrendingDown,
   Download,
-  Check
+  Check,
+  Home as HomeIcon
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,17 +30,53 @@ import SessionSetup from "@/components/SessionSetup";
 import ProcessAnalysis from "@/components/ProcessAnalysis";
 import FinalReport from "@/components/FinalReport";
 import AnalysisLoader from "@/components/AnalysisLoader";
+import ExportReportView from "@/components/ExportReportView";
+import AnalyzedTaskList from "@/components/AnalyzedTaskList";
+import { useToast } from "@/components/ui/toaster";
 
 export default function Home() {
+  const { toast } = useToast();
   const [session, setSession] = useState(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activities, setActivities] = useState([]);
   const [analysis, setAnalysis] = useState(null);
+  const [selectedActivity, setSelectedActivity] = useState(null);
   const [showFinalReport, setShowFinalReport] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showExportView, setShowExportView] = useState(false);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+
+  const resetApp = () => {
+    setSession(null);
+    setActivities([]);
+    setAnalysis(null);
+    setSelectedActivity(null);
+    setShowFinalReport(false);
+    setShowPreview(false);
+    setShowExportView(false);
+    setShowSetup(false);
+    localStorage.removeItem('asme_session');
+  };
+
+  // 1. Persistencia de Sesión
+  useEffect(() => {
+    const savedSession = localStorage.getItem('asme_session');
+    if (savedSession) {
+      try {
+        setSession(JSON.parse(savedSession));
+      } catch (e) {
+        console.error("Error loading session:", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      localStorage.setItem('asme_session', JSON.stringify(session));
+    }
+  }, [session]);
 
   // Load activities when session changes
   useEffect(() => {
@@ -63,49 +100,116 @@ export default function Home() {
     }
   };
 
-  const handleTranscription = async (text) => {
+  // Helper para peticiones con reintento
+  const fetchWithRetry = async (url, options, retries = 2) => {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return response;
+    } catch (err) {
+      if (retries > 0) {
+        toast({ 
+          title: "Problema de Conexión", 
+          description: "Reintentando comunicación con el servidor...",
+          variant: "default" 
+        });
+        await new Promise(r => setTimeout(r, 1500));
+        return fetchWithRetry(url, options, retries - 1);
+      }
+      throw err;
+    }
+  };
+
+  const handleTranscription = async (input) => {
     setIsClassifying(true);
     try {
-      // 1. Classify the transcription
-      const classifyResp = await fetch(`http://localhost:8000/classify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
+      let activityData;
       
-      if (!classifyResp.ok) throw new Error("Classification failed");
-      const classifiedData = await classifyResp.json();
+      if (typeof input === 'string') {
+        const classifyResp = await fetchWithRetry(`http://localhost:8000/classify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: input })
+        });
+        activityData = await classifyResp.json();
+      } else {
+        activityData = input;
+      }
 
-      // 2. Save the classified activity
-      const saveResp = await fetch(`http://localhost:8000/activities`, {
+      const saveResp = await fetchWithRetry(`http://localhost:8000/activities`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           session_id: session.id,
-          data: classifiedData 
+          data: activityData 
         })
       });
 
       if (saveResp.ok) {
         await fetchActivities();
+        toast({
+          title: "Actividad Guardada",
+          description: "Los datos se han procesado y guardado correctamente.",
+          variant: "success"
+        });
       }
     } catch (err) {
-      console.error("Classification/Save error:", err);
+      toast({
+        title: "Error al Guardar",
+        description: "No se pudo procesar la actividad. Por favor intente de nuevo.",
+        variant: "destructive"
+      });
+      console.error("Activity Save error:", err);
     } finally {
       setIsClassifying(false);
     }
   };
 
+  const updateActivity = async (id, updatedData) => {
+    try {
+      const response = await fetchWithRetry(`http://localhost:8000/activities/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      if (response.ok) {
+        await fetchActivities();
+        toast({
+          title: "Actividad Actualizada",
+          description: "Los cambios se han guardado correctamente.",
+          variant: "success"
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error al Actualizar",
+        description: "No se pudieron guardar los cambios.",
+        variant: "destructive"
+      });
+      console.error("Error updating activity:", err);
+    }
+  };
+
   const deleteActivity = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8000/activities/${id}`, {
+      const response = await fetchWithRetry(`http://localhost:8000/activities/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
         await fetchActivities();
         setAnalysis(null);
+        toast({
+          title: "Actividad Eliminada",
+          description: "La actividad ha sido removida del registro.",
+          variant: "default"
+        });
       }
     } catch (err) {
+      toast({
+        title: "Error al Eliminar",
+        description: "No se pudo eliminar la actividad.",
+        variant: "destructive"
+      });
       console.error("Error deleting activity:", err);
     }
   };
@@ -113,18 +217,31 @@ export default function Home() {
   const runFinalAnalysis = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${session.id}/analyze`);
-      if (!response.ok) throw new Error('Analysis failed');
+      const response = await fetchWithRetry(`http://localhost:8000/sessions/${session.id}/analyze`);
       const data = await response.json();
       setAnalysis(data);
+      toast({
+        title: "Análisis Completado",
+        description: "Se han generado nuevas recomendaciones de ingeniería.",
+        variant: "success"
+      });
     } catch (err) {
+      toast({
+        title: "Fallo en el Análisis",
+        description: "La IA no pudo completar el informe. Reintente.",
+        variant: "destructive"
+      });
       console.error("Analysis error:", err);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleExport = (includeAnalysis = false) => {
+  const handleExport = () => {
+    setShowExportView(true);
+  };
+
+  const triggerRealDownload = (includeAnalysis = true) => {
     if (!session) return;
     const url = `http://localhost:8000/export-pdf/${session.id}${includeAnalysis ? '?include_analysis=true' : ''}`;
     window.open(url, '_blank');
@@ -135,8 +252,14 @@ export default function Home() {
       {/* Navbar Industrial */}
       <nav className={`border-b sticky top-0 z-50 transition-all duration-500 ${!session && !showSetup ? 'bg-transparent border-white/5' : 'bg-white border-gray-100'}`}>
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <span className={`font-black text-xl tracking-tighter uppercase ${!session && !showSetup ? 'text-white' : 'text-primary'}`}>ASME Digital</span>
+          <div className="flex items-center space-x-6">
+            <button 
+              onClick={resetApp}
+              className={`p-2 rounded-xl transition-all hover:scale-110 active:scale-95 ${!session && !showSetup ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-primary'}`}
+            >
+              <HomeIcon className="w-6 h-6" />
+            </button>
+            <span className={`font-black text-xl tracking-tighter uppercase ${!session && !showSetup ? 'text-white' : 'text-primary'}`}>ASME DIGITAL</span>
           </div>
           
           {session && (
@@ -149,6 +272,40 @@ export default function Home() {
           )}
         </div>
       </nav>
+
+      {/* Stepper Industrial */}
+      {(session || showSetup) && !showExportView && (
+        <div className="bg-gray-50/50 border-b py-8 animate-in slide-in-from-top duration-500">
+          <div className="max-w-4xl mx-auto px-6">
+            <div className="flex justify-between items-center relative">
+              {/* Lines connecting steps */}
+              <div className="absolute top-5 left-0 w-full h-[2px] bg-gray-200 -z-10"></div>
+              
+              {[
+                { label: "INICIO", step: 1, active: !session },
+                { label: "CAPTURA", step: 2, active: session && !analysis },
+                { label: "ANÁLISIS", step: 3, active: !!analysis && !showFinalReport },
+                { label: "REPORTE", step: 4, active: showFinalReport }
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center space-y-3 group">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${
+                    item.active 
+                    ? 'bg-secondary border-black text-black scale-110 shadow-lg' 
+                    : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
+                  }`}>
+                    <span className="font-black text-sm">{item.step}</span>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    item.active ? 'text-black' : 'text-gray-400'
+                  }`}>
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-6">
         {!session ? (
@@ -195,29 +352,40 @@ export default function Home() {
             ) : showFinalReport ? (
               <FinalReport 
                 session={session}
-                activities={activities}
+                activities={selectedActivity ? [selectedActivity] : activities}
                 analysis={analysis} 
                 onExport={() => handleExport(true)} 
+                onBack={() => setShowFinalReport(false)}
                 onReset={() => {
                   setSession(null);
                   setActivities([]);
                   setAnalysis(null);
+                  setSelectedActivity(null);
                   setShowFinalReport(false);
                   setShowSetup(true);
                 }}
               />
-            ) : analysis ? (
+            ) : analysis && selectedActivity ? (
               <ProcessAnalysis 
                 session={session}
-                analysis={analysis} 
+                activities={[selectedActivity]} // Pass exactly the selected activity
+                analysis={{...analysis, suggestions: analysis.suggestions.filter(s => s.activity_name === selectedActivity.name)}} 
                 onContinue={() => setShowFinalReport(true)} 
-                onBack={() => setAnalysis(null)} 
+                onBack={() => setSelectedActivity(null)} 
+              />
+            ) : analysis ? (
+              <AnalyzedTaskList
+                activities={activities}
+                analysis={analysis}
+                onSelectTask={(task) => setSelectedActivity(task)}
+                onBack={() => setAnalysis(null)}
               />
             ) : (
               <ActivityList 
                 session={session}
                 activities={activities}
                 onDelete={deleteActivity}
+                onUpdate={updateActivity}
                 onAnalyze={runFinalAnalysis}
                 onTranscription={handleTranscription}
                 isProcessingExternal={isClassifying}
@@ -230,6 +398,21 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Export View Modal Overlay */}
+      {showExportView && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
+          <ExportReportView 
+            session={session}
+            activities={selectedActivity ? [selectedActivity] : activities}
+            analysis={analysis}
+            selectedActivityId={selectedActivity?.id}
+            onDownload={() => triggerRealDownload(true)}
+            onBack={() => setShowExportView(false)}
+            onHome={resetApp}
+          />
+        </div>
+      )}
     </div>
   );
 }

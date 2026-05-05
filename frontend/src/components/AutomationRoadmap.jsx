@@ -51,11 +51,11 @@ export default function AutomationRoadmap({ suggestions }) {
                     {sugg.tool_type}
                   </span>
                   <span className="px-3 py-1 bg-secondary text-[9px] font-black uppercase tracking-widest text-primary rounded-full">
-                    Industrial AI
+                    IA Industrial
                   </span>
                   {i % 2 === 0 && (
                     <span className="px-3 py-1 bg-secondary text-[9px] font-black uppercase tracking-widest text-primary rounded-full">
-                      Predictive Model
+                      Modelo Predictivo
                     </span>
                   )}
                 </div>

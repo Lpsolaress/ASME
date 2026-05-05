@@ -1,42 +1,88 @@
 # Servicio Backend ASME Industrial
 
-## Índice de Documentación
-*   [Volver al Inicio](../README.md)
-*   [Arquitectura Detallada](../ARCHITECTURE.md)
-*   [Manual del Frontend](../frontend/README.md)
+Este es el núcleo computacional de la plataforma ASME, encargado de la gestión de datos, análisis mediante IA y generación de reportes técnicos certificados.
 
 ---
 
-## Funcionalidad Principal
-El servicio backend proporciona la inteligencia computacional y analítica para la plataforma ASME. Gestiona la persistencia de datos, la clasificación de procesos impulsada por IA y la generación de informes técnicos.
+## 📋 Requisitos Previos
 
-## Arquitectura Técnica
-El servicio está construido sobre FastAPI, utilizando patrones asíncronos para el manejo eficiente de tareas de E/S, como operaciones de base de datos y llamadas a la API de IA.
+Antes de comenzar, asegúrate de tener instalado:
+*   **Python 3.10+**
+*   **pip** (gestor de paquetes de Python)
+*   **PostgreSQL** (o acceso a una instancia de Supabase)
 
-### Endpoints de la API
-*   **POST /sessions**: Inicializa una nueva sesión de ingeniería con metadatos de la empresa.
-*   **POST /classify**: Procesa texto para extraer parámetros ASME (Nombre, Categoría, Clasificación, Tiempo).
-*   **POST /activities**: Persiste datos de actividades vinculados a una sesión.
-*   **GET /sessions/{id}/activities**: Recupera todas las actividades registradas en una sesión.
-*   **POST /analyze**: Genera un plan de optimización integral basado en los datos de la sesión.
-*   **GET /export-pdf/{id}**: Genera un reporte PDF industrial certificado con analítica visual.
+---
 
-### Modelo de Datos
-*   **Sesión**: Contiene el contexto organizacional y parámetros de acuerdo mensual.
-*   **Actividad**: Mapeo detallado de tareas incluyendo clasificación VA/NVA y carga anual.
-*   **Plan de Optimización**: Resultado estratégico de la IA con proyecciones de ROI.
+## 🛠️ Configuración e Instalación
 
-### Servicios Internos
-*   **Base de Datos**: Gestión de conexiones y operaciones CRUD.
-*   **Servicio de IA**: Interfaz para el procesamiento semántico y extracción de datos estructurados.
-*   **Servicio PDF**: Renderiza informes técnicos utilizando ReportLab e integra gráficos de Matplotlib.
+Sigue estos pasos para configurar el entorno de desarrollo local:
 
-## Configuración
-El servicio requiere las siguientes variables de entorno en un archivo `.env`:
-*   `DATABASE_URL`: Cadena de conexión para PostgreSQL/Supabase.
-*   `OPENAI_API_KEY`: Clave de autenticación para servicios de IA.
+### 1. Preparar el Entorno Virtual
+Es recomendable usar un entorno virtual para aislar las dependencias del proyecto.
 
-## Ejecución Local
+```bash
+# Navegar a la carpeta del backend
+cd Back
+
+# Crear el entorno virtual
+python -m venv venv
+
+# Activar el entorno virtual
+# En macOS/Linux:
+source venv/bin/activate
+# En Windows:
+# venv\Scripts\activate
+```
+
+### 2. Instalar Dependencias
+Con el entorno virtual activado, instala todos los paquetes necesarios:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configuración de Variables de Entorno
+Crea un archivo `.env` en la raíz de la carpeta `/Back` (puedes usar el archivo `.env` existente como base) con las siguientes claves:
+
+```env
+OPENAI_API_KEY=tu_clave_de_openai_aqui
+DATABASE_URL=postgresql://usuario:password@host:puerto/nombre_db
+```
+
+---
+
+## Ejecución del Servidor
+
+Para iniciar el servidor en modo desarrollo (con recarga automática):
+
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+El backend estará disponible en: `http://localhost:8000`
+
+---
+
+## 📖 Documentación de la API
+
+FastAPI genera automáticamente documentación interactiva. Una vez que el servidor esté corriendo, puedes acceder a:
+
+*   **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) (Ideal para probar los endpoints)
+*   **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc) (Documentación más limpia y detallada)
+
+---
+
+## Estructura del Proyecto
+
+*   `main.py`: Punto de entrada de la aplicación y definición de rutas.
+*   `/database`: Configuración de la conexión y modelos de la base de datos.
+*   `/services`: Lógica de negocio (IA, Generación de PDF, etc.).
+*   `requirements.txt`: Lista de dependencias del proyecto.
+
+---
+
+## Enlaces de Interés
+*   [Volver al Inicio del Proyecto](../README.md)
+*   [Arquitectura Detallada](../ARCHITECTURE.md)
+*   [Manual del Frontend](../Frontend/README.md)
+

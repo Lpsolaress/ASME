@@ -32,6 +32,9 @@ class SessionCreate(BaseModel):
     task_name: str = ""
     monthly_agreement: float = 0.0
     minutes_per_hour: float = 60.0
+    staff_count: int = 1
+    hourly_cost: float = 0.0
+    initial_classification: str = "VA"
 
 class ActivitySave(BaseModel):
     session_id: str
@@ -147,12 +150,28 @@ async def create_session(session: SessionCreate):
     result = db.create_session(
         session.company_name, 
         session.department, 
-        session.task_name,
+        session.task_name, 
         session.monthly_agreement, 
-        session.minutes_per_hour
+        session.minutes_per_hour,
+        session.staff_count,
+        session.hourly_cost
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create session in Supabase")
+        raise HTTPException(status_code=500, detail="Failed to create session")
+    
+    # Auto-create first activity based on Phase 1 data
+    # volume_daily = monthly_agreement / 20 working days
+    vol_daily = max(1, int(session.monthly_agreement / 20))
+    first_activity = {
+        "name": session.task_name or "Proceso Inicial",
+        "category": "Operación",
+        "classification": session.initial_classification,
+        "time_unit": session.minutes_per_hour,
+        "volume_daily": vol_daily,
+        "justification": "Generado automáticamente desde la configuración inicial."
+    }
+    db.add_activity(result["id"], first_activity)
+    
     return result
 
 @app.post("/activities")
@@ -173,24 +192,28 @@ async def delete_activity(activity_id: str):
         raise HTTPException(status_code=404, detail="Activity not found")
     return {"status": "success"}
 
+@app.put("/activities/{activity_id}")
+async def update_activity(activity_id: str, payload: dict):
+    result = db.update_activity(activity_id, payload)
+    if not result:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return result
+
 @app.get("/export-pdf/{session_id}")
-async def export_pdf(session_id: str, include_analysis: bool = False):
+async def export_pdf(session_id: str, include_analysis: bool = False, preview: bool = False):
     session = db.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     activities = db.get_session_activities(session_id)
     
-    # Mock activities if none found and in mock mode
-    if not activities and (not os.getenv("OPENAI_API_KEY") or "tu_clave" in os.getenv("OPENAI_API_KEY")):
+    # Provide mock data if none found to ensure a smooth demo experience
+    if not activities:
         activities = [
             {"name": "Inspección de Calidad", "category": "Revisión", "classification": "NVA", "time_unit": 1.5, "volume_daily": 450, "annual_minutes": 162000},
             {"name": "Carga de Datos", "category": "Operación", "classification": "VA", "time_unit": 2.0, "volume_daily": 200, "annual_minutes": 96000},
             {"name": "Empaquetado", "category": "Operación", "classification": "VA", "time_unit": 1.0, "volume_daily": 300, "annual_minutes": 72000}
         ]
-
-    if not activities:
-        raise HTTPException(status_code=400, detail="No activities to export")
     
     # Optional global analysis for the PDF
     global_analysis = None
@@ -202,16 +225,34 @@ async def export_pdf(session_id: str, include_analysis: bool = False):
 
     pdf_buffer = PDFService.generate_asme_report(session, activities, global_analysis)
     
+    filename = session.get('task_name', session.get('company_name', 'ASME'))
+    safe_filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
+    disposition = "inline" if preview else "attachment"
     headers = {
-        'Content-Disposition': f'attachment; filename="Informe_ASME_{session["company_name"]}.pdf"'
+        'Content-Disposition': f'{disposition}; filename="Informe_ASME_{safe_filename}.pdf"'
     }
     return StreamingResponse(pdf_buffer, media_type='application/pdf', headers=headers)
+import json
+import os
+from pydantic import BaseModel
+
+def get_cache_path(session_id):
+    return f"analysis_cache_{session_id}.json"
 
 async def analyze_session_data(session_id: str):
+    cache_path = get_cache_path(session_id)
+    if os.path.exists(cache_path):
+        with open(cache_path, 'r') as f:
+            data = json.load(f)
+            return OptimizationPlan(**data)
+
+    session = db.get_session(session_id)
+    activities = db.get_session_activities(session_id)
+    
     # Mock fallback if API key is not set
     if not os.getenv("OPENAI_API_KEY") or "tu_clave" in os.getenv("OPENAI_API_KEY"):
         return OptimizationPlan(
-            executive_summary="[MOCK] Resumen de prueba para demostración. El sistema recomienda automatizar tareas repetitivas.",
+            executive_summary=f"[MOCK] Resumen de análisis para el proceso '{session.get('task_name')}'. El sistema recomienda automatizar tareas repetitivas para maximizar el ROI.",
             suggestions=[
                 OptimizationSuggestion(
                     activity_name="Tarea de Prueba",
@@ -224,9 +265,6 @@ async def analyze_session_data(session_id: str):
             estimated_annual_savings_min=15000
         )
 
-    session = db.get_session(session_id)
-    activities = db.get_session_activities(session_id)
-    
     # Format activities for the prompt
     activities_str = "\n".join([
         f"- {a['name']} ({a['category']}, {a['classification']}): {a['time_unit']} min, {a['volume_daily']}/día."
@@ -236,8 +274,9 @@ async def analyze_session_data(session_id: str):
     system_prompt = f"""
     Eres un consultor senior en Ingeniería Industrial y Transformación Digital.
     Has realizado un estudio ASME para la empresa {session['company_name']} en el departamento {session['department']}.
+    El proceso específico analizado es: "{session['task_name']}".
     
-    Tu objetivo es proponer un Plan de Optimización de Procesos.
+    Tu objetivo es proponer un Plan de Optimización de Procesos enfocado específicamente en "{session['task_name']}".
     Debes identificar oportunidades en tareas NVA (desperdicio) y también eficiencias en tareas VA (valor añadido).
     Propón soluciones genéricas de software (ej: RPA, IA, OCR, Automatización de workflows).
     """
@@ -257,7 +296,10 @@ async def analyze_session_data(session_id: str):
         ],
         response_format=OptimizationPlan
     )
-    return response.choices[0].message.parsed
+    result = response.choices[0].message.parsed
+    with open(cache_path, 'w') as f:
+        json.dump(result.model_dump(), f)
+    return result
 
 @app.get("/sessions/{session_id}/analyze")
 async def get_session_analysis(session_id: str):

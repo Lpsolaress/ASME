@@ -11,294 +11,230 @@ import {
   BarChart3,
   Check,
   ChevronRight,
-  Target
+  Target,
+  Users,
+  Euro,
+  Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 import AutomationRoadmap from "./AutomationRoadmap";
 
-export default function ProcessAnalysis({ session, analysis, onContinue, onBack }) {
+export default function ProcessAnalysis({ session, analysis, activities, onContinue, onBack }) {
   const [view, setView] = React.useState('details'); // 'details' or 'roadmap'
+  const [hourlyCost, setHourlyCost] = React.useState(25); // Default for calculation
+  const [staffCount, setStaffCount] = React.useState(1); // Default for calculation
+  
   if (!analysis) return null;
 
-  // Calculate metrics
+  // Calculate metrics based on Simplified Model
   const totalActivities = analysis.suggestions.length;
-  const avgPotential = 78; // Mocked or calculated
-  const savedHours = Math.round(analysis.estimated_annual_savings_min / 60);
-  const priorityActions = analysis.suggestions.filter(s => s.impact === 'Alto').length;
+  const hoursPaidPerPerson = 8; 
+  
+  // Use actual activities for calculation
+  const totalMinutesDaily = activities 
+    ? activities.reduce((acc, act) => acc + ((act.time_unit || 0) * (act.volume_daily || 0)), 0)
+    : analysis.suggestions.reduce((acc, sugg) => acc + (sugg.daily_minutes || 60), 0);
+    
+  const totalHoursEffectiveDaily = totalMinutesDaily / 60;
+  
+  const totalHoursPaidDaily = staffCount * hoursPaidPerPerson;
+  const excessHoursDaily = Math.max(0, totalHoursPaidDaily - totalHoursEffectiveDaily);
+  const annualSavingsEuro = Math.round(excessHoursDaily * hourlyCost * 20 * 12);
 
-  return (
-    <div className="max-w-[1200px] mx-auto py-8 px-6 space-y-10 animate-in fade-in duration-700">
-      
-      {/* Stepper Step 4 */}
-      <div className="flex items-center justify-between px-32 relative pb-4">
-        <div className="absolute top-5 left-40 right-40 h-[2px] bg-gray-100 -z-10" />
-        
-        {[
-          { step: 1, label: 'Setup', completed: true },
-          { step: 2, label: 'Data Import', completed: true },
-          { step: 3, label: 'Identification', completed: true },
-          { step: 4, label: 'Analysis', active: true },
-          { step: 5, label: 'Final Report', active: false },
-        ].map((s) => (
-          <div key={s.step} className="flex flex-col items-center space-y-3">
-            <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-500 ${
-              s.completed ? 'bg-black border-black text-white' : 
-              s.active ? 'bg-secondary border-primary text-primary' : 'bg-[#F3F4F6] border-transparent text-[#9CA3AF]'
-            }`}>
-              {s.completed ? <Check className="w-5 h-5" /> : s.step}
+  const renderContent = () => {
+    if (view === 'roadmap') {
+      return <AutomationRoadmap suggestions={analysis.suggestions} />;
+    }
+    
+    return (
+      <div className="space-y-12">
+        {/* Simplified Capacity Input (Editable here for real-time ROI) */}
+        <div className="bg-white border border-gray-100 rounded-[32px] p-8 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">Plantilla (Personas)</label>
+                <input 
+                    type="number" 
+                    value={staffCount} 
+                    onChange={(e) => setStaffCount(parseInt(e.target.value) || 0)}
+                    className="w-full h-14 border border-gray-200 rounded-2xl px-6 font-bold text-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
+                />
             </div>
-            <span className={`text-[11px] font-bold tracking-tight transition-colors duration-500 ${s.active || s.completed ? 'text-primary' : 'text-[#9CA3AF]'}`}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tight text-primary uppercase italic">Resumen General de Resultados</h1>
-          <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Análisis detallado de eficiencia industrial para {session?.company_name}</p>
-        </div>
-        <div className="flex gap-4">
-          <Button 
-            variant="outline" 
-            onClick={onBack}
-            className="border-2 border-black rounded-none px-6 font-black uppercase text-xs tracking-widest"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Volver
-          </Button>
-          <Button 
-            onClick={onContinue}
-            className="bg-black text-white hover:bg-secondary hover:text-primary rounded-none px-8 font-black uppercase text-xs tracking-widest transition-all"
-          >
-            Continuar <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Top Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: "Actividades Totales", value: totalActivities, sub: "Inventario de procesos activo", icon: <CheckCircle2 className="w-4 h-4 text-secondary" /> },
-          { label: "Potencial de Automatización", value: `${avgPotential}%`, sub: "+12% vs trimestre anterior", icon: <TrendingUp className="w-4 h-4 text-secondary" /> },
-          { label: "Horas Ahorradas/Año", value: savedHours.toLocaleString(), sub: "Proyección estimada ROI", icon: <Clock className="w-4 h-4 text-secondary" /> },
-          { label: "Acciones Prioritarias", value: priorityActions, sub: "Requiere atención inmediata", icon: <AlertTriangle className="w-4 h-4 text-secondary" />, isAlert: true }
-        ].map((card, i) => (
-          <div key={i} className="bg-black p-6 space-y-4 relative overflow-hidden group">
-            <div className="space-y-1 relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{card.label}</p>
-              <div className="text-4xl font-black text-secondary tracking-tighter">{card.value}</div>
+            <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">Costo por Hora (€)</label>
+                <input 
+                    type="number" 
+                    value={hourlyCost} 
+                    onChange={(e) => setHourlyCost(parseInt(e.target.value) || 0)}
+                    className="w-full h-14 border border-gray-200 bg-gray-50 rounded-2xl px-6 font-bold text-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
+                />
             </div>
-            <div className="flex items-center gap-2 text-[9px] font-bold text-gray-500 uppercase tracking-widest relative z-10">
-              {card.icon} {card.sub}
-            </div>
-            {card.isAlert && <div className="absolute top-0 right-0 w-1 h-full bg-secondary" />}
-          </div>
-        ))}
-      </div>
-
-      {/* Middle Section: Potential Chart */}
-      <div className="bg-white border-2 border-gray-100 p-8 space-y-8">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-black uppercase tracking-tight text-primary">Potencial de Automatización por Actividad</h2>
-          <div className="flex gap-2">
-             <span className="px-3 py-1 bg-gray-100 text-[9px] font-black uppercase tracking-widest">Filtrar</span>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {analysis.suggestions.map((sugg, i) => {
-            const potential = 94 - (i * 12); // Dynamic mock value
-            return (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between items-end">
-                  <span className="text-sm font-black uppercase tracking-tight text-primary">{sugg.activity_name}</span>
-                  <span className="text-[10px] font-bold text-gray-400">{potential}%</span>
+            <div className="flex items-end pb-1">
+                <div className="bg-secondary/20 text-black px-6 py-3 rounded-2xl border border-secondary/30 w-full flex flex-col justify-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-secondary-foreground/70">Pérdida por Exceso</p>
+                    <p className="text-2xl font-black">{(excessHoursDaily * hourlyCost).toFixed(2)} €<span className="text-sm">/Día</span></p>
                 </div>
-                <div className="w-full h-8 bg-gray-50 relative overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-1000 ${potential > 50 ? 'bg-secondary' : 'bg-gray-400'}`} 
-                    style={{ width: `${potential}%` }} 
-                  />
-                </div>
-              </div>
-            );
-          })}
+            </div>
         </div>
-        
-        <div className="flex gap-6 pt-4 border-t border-gray-50">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-secondary" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Prioridad Alta</span>
+
+        {/* CARGA DIARIA TABLE (Exact replica of Excel Logic) */}
+        <div className="bg-white border border-gray-100 rounded-[32px] overflow-hidden shadow-sm">
+          <div className="bg-gray-50/50 p-6 border-b border-gray-100">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 text-gray-500">
+              <Calculator className="w-4 h-4 text-black" /> Balance de Carga de Trabajo (Modelo ASME)
+            </h3>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-400" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Evaluación Pendiente</span>
+          <div className="overflow-x-auto">
+            <table className="w-full text-center border-collapse">
+              <thead>
+                <tr className="bg-white border-b border-gray-100">
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Estado</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Plantilla</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">H. Pagadas/P</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">H. Efectivas</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">H. Pagadas Totales</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-black bg-secondary/10">Exceso Horas Diario</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="font-bold text-base hover:bg-gray-50/50 transition-colors">
+                  <td className="p-6 text-gray-500 text-xs font-black tracking-widest uppercase">PROCESO</td>
+                  <td className="p-6">{staffCount}</td>
+                  <td className="p-6">{hoursPaidPerPerson}</td>
+                  <td className="p-6 font-black">{totalHoursEffectiveDaily.toFixed(2)}</td>
+                  <td className="p-6">{totalHoursPaidDaily}</td>
+                  <td className="p-6 font-black bg-secondary/10 text-secondary-foreground">{excessHoursDaily.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
 
-      {/* View Toggle */}
-      <div className="flex gap-4 border-b-2 border-gray-100 pb-6">
-        <button 
-          onClick={() => setView('details')}
-          className={`flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all ${
-            view === 'details' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-          }`}
-        >
-          <Cpu className="w-4 h-4" /> Módulos Técnicos
-        </button>
-        <button 
-          onClick={() => setView('roadmap')}
-          className={`flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all ${
-            view === 'roadmap' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-          }`}
-        >
-          <Zap className="w-4 h-4" /> Hoja de Ruta de Automatización
-        </button>
-      </div>
+        <div className="flex items-center justify-between px-2 pt-4">
+          <h3 className="text-lg font-black uppercase tracking-tight text-black flex items-center gap-2"><Target className="w-5 h-5 text-secondary" /> Inventario de Actividades Clasificadas</h3>
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">{analysis.suggestions.length} Registros</div>
+        </div>
 
-      {view === 'roadmap' ? (
-        <AutomationRoadmap suggestions={analysis.suggestions} />
-      ) : (
-        <div className="space-y-12">
-          <div className="flex items-center justify-between border-b-2 border-gray-100 pb-4">
-            <h3 className="text-2xl font-black uppercase tracking-tight text-primary italic">Desglose de Ingeniería por Actividad</h3>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{analysis.suggestions.length} Módulos de Análisis</div>
-          </div>
-          {/* Rest of the detail modules... */}
-
+        <div className="grid grid-cols-1 gap-6">
         {analysis.suggestions.map((sugg, i) => {
-          // Find matching activity data if possible (mocked for now to match the UI perfectly)
-          const potential = 94 - (i * 12);
+          // Attempt to find the real activity data from the activities prop
+          const relatedAct = activities ? activities.find(a => a.name.toLowerCase() === sugg.activity_name.toLowerCase()) : null;
+          const isVA = relatedAct ? relatedAct.classification === 'VA' : (sugg.classification === 'VA');
+          const timeUnit = relatedAct ? relatedAct.time_unit : (sugg.time_unit || 0);
+          const volumeDaily = relatedAct ? relatedAct.volume_daily : (sugg.volume_daily || 0);
+
           return (
-            <div key={i} className="bg-white border-2 border-black rounded-none overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-              {/* Card Header */}
-              <div className="p-6 border-b-2 border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div key={i} className="bg-white border border-gray-100 rounded-[24px] overflow-hidden hover:shadow-md transition-all duration-300">
+              <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <h4 className="text-3xl font-black uppercase tracking-tighter text-primary">{sugg.activity_name}</h4>
-                  <div className="px-3 py-1 bg-secondary text-[10px] font-black uppercase tracking-widest">Revisión</div>
-                </div>
-                <div className="flex items-center gap-2 text-primary">
-                  <Cpu className="w-5 h-5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">AI Activity Analysis</span>
+                  <div className={`w-3 h-12 rounded-full ${isVA ? 'bg-secondary' : 'bg-gray-200'}`} />
+                  <div>
+                    <h4 className="text-xl font-black uppercase tracking-tight leading-none mb-1.5">{sugg.activity_name}</h4>
+                    <div className="flex gap-3 items-center">
+                        <div className="flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full ${isVA ? 'bg-secondary' : 'bg-gray-400'}`} />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isVA ? 'Valor Añadido' : 'No Valor Añadido'}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-gray-300">•</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{timeUnit} min • {volumeDaily} ud/día</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-8 space-y-8">
-                {/* Metrics Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-black text-secondary p-6 text-center space-y-1">
-                    <div className="text-xs font-bold uppercase tracking-widest opacity-70 italic">Cycle Time</div>
-                    <div className="text-2xl font-black tracking-tighter uppercase">1.5 Min/Unidad</div>
-                  </div>
-                  <div className="bg-black text-secondary p-6 text-center space-y-1">
-                    <div className="text-xs font-bold uppercase tracking-widest opacity-70 italic">Throughput</div>
-                    <div className="text-2xl font-black tracking-tighter uppercase">450 Unid/Día</div>
-                  </div>
-                  <div className="bg-black text-secondary p-6 text-center space-y-1">
-                    <div className="text-xs font-bold uppercase tracking-widest opacity-70 italic">Total Load</div>
-                    <div className="text-2xl font-black tracking-tighter uppercase">162,000 Min/Año</div>
-                  </div>
-                </div>
-
-                {/* Content Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Visual Context */}
-                  <div className="lg:col-span-7 relative group cursor-crosshair">
-                    <div className="aspect-video bg-gray-900 overflow-hidden relative border-2 border-black">
-                      <img 
-                        src={`https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800`} 
-                        className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700" 
-                        alt="Process Context"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                      <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[10px] font-bold text-white uppercase tracking-widest">
-                        <BarChart3 className="w-4 h-4 text-secondary" /> Visual inspection process mapped via sensor data
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI Suggestion Box */}
-                  <div className="lg:col-span-5 bg-gray-50 border-2 border-gray-100 p-6 space-y-6 relative overflow-hidden">
-                    <div className="space-y-2 relative z-10">
-                      <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400">AI Suggestion</h5>
-                      <p className="text-lg font-bold text-primary leading-tight">
-                        {sugg.reasoning}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest relative z-10 pt-4">
-                      <TrendingUp className="w-4 h-4" /> Confidence {potential}%
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 opacity-5 rotate-12">
-                      <Zap className="w-32 h-32" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Analysis Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t-2 border-gray-100">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" />
-                      <h5 className="text-[11px] font-black uppercase tracking-widest text-primary">Classification Details</h5>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-400">
-                        <span>VA (Value Added)</span>
-                        <span>0%</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-400">
-                        <span>SVA (Support VA)</span>
-                        <span>0%</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-black uppercase tracking-tight text-red-500 border-t border-gray-100 pt-2">
-                        <span>NVA (Non-Value Added)</span>
-                        <span>100%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-primary" />
-                      <h5 className="text-[11px] font-black uppercase tracking-widest text-primary">Related Equipment</h5>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {['CMM Machine A-04', 'Laser Scanner S2', 'Vernier Caliper'].map(eq => (
-                        <span key={eq} className="px-3 py-1 border-2 border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                          {eq}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pt-2">
-                      System status: <span className="text-green-500">Operational</span>
-                    </p>
-                  </div>
+              <div className="bg-gray-50/50 p-6 border-t border-gray-50 flex gap-4">
+                <Zap className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Optimización Sugerida</h5>
+                  <p className="text-sm font-bold text-gray-600 leading-relaxed">
+                    {sugg.reasoning}
+                  </p>
                 </div>
               </div>
             </div>
           );
         })}
         </div>
-      )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto py-12 px-6 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Header Premium */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-black bg-secondary/20 px-4 py-2 rounded-xl w-fit text-[10px] font-black uppercase tracking-[0.3em]">
+            <Target className="w-4 h-4 text-secondary" /> ASME SIMPLIFIED REPORT
+          </div>
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black leading-none">
+                ASME <span className="text-gray-300 italic">DIGITAL</span>
+            </h1>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-3">
+                {session?.company_name} • {session?.department} • {new Date().toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex bg-gray-50 p-1.5 rounded-[20px] border border-gray-100">
+          <button 
+            onClick={() => setView('details')}
+            className={`flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-2xl ${
+              view === 'details' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" /> Resultados
+          </button>
+          <button 
+            onClick={() => setView('roadmap')}
+            className={`flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-2xl ${
+              view === 'roadmap' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Zap className="w-4 h-4" /> Plan de Mejora
+          </button>
+        </div>
+      </div>
+
+      {/* Top Cards Grid - Premium Look */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: "Tiempo de Producción", value: `${totalHoursEffectiveDaily.toFixed(1)} H`, sub: "Efectivas al día", icon: <Clock className="w-4 h-4 text-black" /> },
+          { label: "Eficiencia de Plantilla", value: `${((totalHoursEffectiveDaily / totalHoursPaidDaily) * 100).toFixed(1)}%`, sub: `Para ${staffCount} pers.`, icon: <TrendingUp className="w-4 h-4 text-black" /> },
+          { label: "Ahorro Potencial", value: `${annualSavingsEuro.toLocaleString()} €`, sub: `Anual estimado`, icon: <Euro className="w-4 h-4 text-black" />, isAlert: true }
+        ].map((card, i) => (
+          <Card key={i} className={`border border-gray-100 rounded-[32px] overflow-hidden shadow-sm ${card.isAlert ? 'bg-secondary border-secondary text-black' : 'bg-white text-black'}`}>
+            <CardContent className="p-8 space-y-4">
+              <div className="space-y-1">
+                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${card.isAlert ? 'text-black/60' : 'text-gray-400'}`}>{card.label}</p>
+                <div className="text-4xl font-black tracking-tighter">{card.value}</div>
+              </div>
+              <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${card.isAlert ? 'text-black/60' : 'text-gray-400'}`}>
+                {card.icon} {card.sub}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {renderContent()}
 
       {/* Footer Navigation */}
-      <div className="flex justify-between items-center pt-12 border-t-4 border-black">
+      <div className="flex flex-col md:flex-row justify-between items-center pt-8 gap-4 border-t border-gray-100">
         <Button 
-          variant="outline" 
+          variant="ghost" 
           onClick={onBack}
-          className="border-2 border-black rounded-none px-8 h-14 font-black uppercase text-xs tracking-widest gap-2"
+          className="rounded-xl px-8 h-14 font-black uppercase text-xs tracking-widest gap-2 text-gray-400 hover:text-black hover:bg-gray-50 transition-all w-full md:w-auto"
         >
-          <ArrowLeft className="w-4 h-4" /> Anterior
+          <ArrowLeft className="w-4 h-4" /> Regresar
         </Button>
         <Button 
           onClick={onContinue}
-          className="bg-black text-white rounded-none px-16 h-14 font-black uppercase text-sm tracking-widest gap-2 hover:bg-secondary hover:text-primary transition-all"
+          className="bg-black text-white hover:bg-secondary hover:text-black rounded-2xl px-12 h-16 font-black uppercase text-xs tracking-widest gap-3 shadow-lg shadow-black/5 transition-all active:scale-95 w-full md:w-auto"
         >
-          Finalizar y Certificar Reporte <ChevronRight className="w-5 h-5" />
+          Finalizar y Certificar Reporte <CheckCircle2 className="w-5 h-5" />
         </Button>
       </div>
     </div>
