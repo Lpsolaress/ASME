@@ -37,7 +37,7 @@ export default function ExportReportView({ session, activities = [], analysis, s
 
   let pdfUrl = '';
   if (session?.id) {
-      pdfUrl = `http://localhost:8000/export-pdf/${session.id}?include_analysis=true&preview=true`;
+      pdfUrl = `http://127.0.0.1:8000/export-pdf/${session.id}?include_analysis=true&preview=true`;
       if (selectedActivityId) {
           pdfUrl += `&activity_id=${selectedActivityId}`;
       }

@@ -87,7 +87,41 @@ async def transcribe_audio(file: UploadFile = File(...)):
         
         return {"text": text.strip(), "language": info.language, "duration": info.duration}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"TRANSCRIBE ERROR: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en transcripción: {str(e)}")
+
+class SetupClassification(BaseModel):
+    company_name: str
+    department: str
+    task_name: str
+
+@app.post("/classify-setup")
+async def classify_setup(payload: ClassifyRequest):
+    text = payload.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="El texto no puede estar vacío.")
+
+    system_prompt = """
+    Eres un experto en extracción de datos. 
+    Tu tarea es extraer: nombre de la empresa, departamento y nombre de la tarea/proceso a partir de una descripción.
+    Responde ÚNICAMENTE en JSON válido con las llaves: company_name, department, task_name.
+    Si algún campo no se encuentra, deja un string vacío.
+    """
+
+    try:
+        response = client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            response_format=SetupClassification
+        )
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"Setup Classification error: {e}")
+        # Mock fallback if LLM fails
+        return SetupClassification(company_name="", department="", task_name=text)
 
 @app.post("/classify")
 async def classify_activity(payload: ClassifyRequest):
@@ -99,18 +133,14 @@ async def classify_activity(payload: ClassifyRequest):
     Eres un experto en ingeniería industrial y metodología ASME. 
     Tu tarea es extraer datos estructurados de una descripción de actividad laboral.
     
-    Reglas de Categoría (Usa exactamente estos nombres):
-    - Operación: transforma o procesa el producto
-    - Revisión: comprueba sin transformar
-    - Traslado: mueve material o información
-    - Espera: tiempo sin actividad
-    - Archivo: guarda o recupera
+    Reglas de Categoría y Clasificación (ESTRICTO):
+    1. Operación: transforma o procesa el producto. (Clasificar SIEMPRE como VA)
+    2. Revisión: comprueba sin transformar. (Clasificar SIEMPRE como NVA)
+    3. Traslado: mueve material o información. (Clasificar SIEMPRE como NVA)
+    4. Espera: tiempo sin actividad o retraso. (Clasificar SIEMPRE como NVA)
+    5. Archivo: guarda, organiza o recupera. (Clasificar SIEMPRE como NVA)
 
-    Reglas de Clasificación:
-    - VA: Valor Añadido
-    - NVA: No Valor Añadido
-    
-    Extrae: nombre, categoría, clasificación, tiempo por unidad (minutos), volumen diario.
+    Extrae: nombre, categoría, clasificación (VA o NVA), tiempo por unidad (minutos), volumen diario.
     Responde ÚNICAMENTE en JSON válido.
     """
 
@@ -139,9 +169,7 @@ async def classify_activity(payload: ClassifyRequest):
         print(f"Classification error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/classify")
-async def classify_text(request: ClassifyRequest):
-    return await classify_activity(request.text)
+
 
 # --- Persistence Endpoints ---
 
@@ -159,20 +187,8 @@ async def create_session(session: SessionCreate):
     if not result:
         raise HTTPException(status_code=500, detail="Failed to create session")
     
-    # Auto-create first activity based on Phase 1 data
-    # volume_daily = monthly_agreement / 20 working days
-    vol_daily = max(1, int(session.monthly_agreement / 20))
-    first_activity = {
-        "name": session.task_name or "Proceso Inicial",
-        "category": "Operación",
-        "classification": session.initial_classification,
-        "time_unit": session.minutes_per_hour,
-        "volume_daily": vol_daily,
-        "justification": "Generado automáticamente desde la configuración inicial."
-    }
-    db.add_activity(result["id"], first_activity)
-    
     return result
+
 
 @app.post("/activities")
 async def save_activity(payload: ActivitySave):

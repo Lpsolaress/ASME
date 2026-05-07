@@ -60,14 +60,15 @@ class DatabaseService:
                     """
                     cur.execute(query, (
                         session_id,
-                        activity_data.get("name"),
-                        activity_data.get("category"),
-                        activity_data.get("classification"),
+                        activity_data.get("name") or "Actividad sin nombre",
+                        activity_data.get("category") or "Operación",
+                        activity_data.get("classification") or "VA",
                         time_unit,
                         volume_daily,
                         annual_minutes,
-                        activity_data.get("justification")
+                        activity_data.get("justification") or ""
                     ))
+
                     return cur.fetchone()
         finally:
             conn.close()

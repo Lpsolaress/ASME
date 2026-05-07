@@ -46,7 +46,7 @@ export default function VoiceCapture({ onTranscription }) {
     formData.append('file', blob, 'recording.wav');
 
     try {
-      const response = await fetch('http://localhost:8000/transcribe', {
+      const response = await fetch('http://127.0.0.1:8000/transcribe', {
         method: 'POST',
         body: formData,
       });

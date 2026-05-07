@@ -88,7 +88,7 @@ export default function Home() {
   const fetchActivities = async () => {
     setIsLoadingActivities(true);
     try {
-      const resp = await fetch(`http://localhost:8000/sessions/${session.id}/activities`);
+      const resp = await fetch(`http://127.0.0.1:8000/sessions/${session.id}/activities`);
       if (resp.ok) {
         const data = await resp.json();
         setActivities(data);
@@ -125,18 +125,21 @@ export default function Home() {
     try {
       let activityData;
       
-      if (typeof input === 'string') {
-        const classifyResp = await fetchWithRetry(`http://localhost:8000/classify`, {
+      // Si el input es un string o un objeto que solo contiene 'text', necesitamos clasificarlo
+      if (typeof input === 'string' || (typeof input === 'object' && input.text && !input.name)) {
+        const textToClassify = typeof input === 'string' ? input : input.text;
+        const classifyResp = await fetchWithRetry(`http://127.0.0.1:8000/classify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: input })
+          body: JSON.stringify({ text: textToClassify })
         });
         activityData = await classifyResp.json();
       } else {
         activityData = input;
       }
 
-      const saveResp = await fetchWithRetry(`http://localhost:8000/activities`, {
+
+      const saveResp = await fetchWithRetry(`http://127.0.0.1:8000/activities`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -167,7 +170,7 @@ export default function Home() {
 
   const updateActivity = async (id, updatedData) => {
     try {
-      const response = await fetchWithRetry(`http://localhost:8000/activities/${id}`, {
+      const response = await fetchWithRetry(`http://127.0.0.1:8000/activities/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -192,7 +195,7 @@ export default function Home() {
 
   const deleteActivity = async (id) => {
     try {
-      const response = await fetchWithRetry(`http://localhost:8000/activities/${id}`, {
+      const response = await fetchWithRetry(`http://127.0.0.1:8000/activities/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -217,7 +220,7 @@ export default function Home() {
   const runFinalAnalysis = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await fetchWithRetry(`http://localhost:8000/sessions/${session.id}/analyze`);
+      const response = await fetchWithRetry(`http://127.0.0.1:8000/sessions/${session.id}/analyze`);
       const data = await response.json();
       setAnalysis(data);
       toast({
@@ -243,7 +246,7 @@ export default function Home() {
 
   const triggerRealDownload = (includeAnalysis = true) => {
     if (!session) return;
-    const url = `http://localhost:8000/export-pdf/${session.id}${includeAnalysis ? '?include_analysis=true' : ''}`;
+    const url = `http://127.0.0.1:8000/export-pdf/${session.id}${includeAnalysis ? '?include_analysis=true' : ''}`;
     window.open(url, '_blank');
   };
 
