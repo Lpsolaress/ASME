@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000';
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' ? 'http://127.0.0.1:8000' : `http://${hostname}:8000`;
+};
+const API_URL = getApiUrl();
+
 export default function ExportReportView({ session, activities = [], analysis, selectedActivityId, onDownload, onBack, onHome }) {
   const [copied, setCopied] = useState(false);
   const [directLink, setDirectLink] = useState('');
@@ -37,7 +44,7 @@ export default function ExportReportView({ session, activities = [], analysis, s
 
   let pdfUrl = '';
   if (session?.id) {
-      pdfUrl = `http://127.0.0.1:8000/export-pdf/${session.id}?include_analysis=true&preview=true`;
+      pdfUrl = `${API_URL}/export-pdf/${session.id}?include_analysis=true&preview=true`;
       if (selectedActivityId) {
           pdfUrl += `&activity_id=${selectedActivityId}`;
       }

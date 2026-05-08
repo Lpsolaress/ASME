@@ -203,9 +203,29 @@ async def create_session(session: SessionCreate):
     return result
 
 
+def normalize_activity_data(data: dict):
+    # Map for common variations to exact DB categories
+    category_map = {
+        "operacion": "Operación",
+        "operación": "Operación",
+        "revision": "Revisión",
+        "revisión": "Revisión",
+        "traslado": "Traslado",
+        "espera": "Espera",
+        "archivo": "Archivo"
+    }
+    if "category" in data and isinstance(data["category"], str):
+        cat_lower = data["category"].lower()
+        if cat_lower in category_map:
+            data["category"] = category_map[cat_lower]
+        else:
+            data["category"] = data["category"].capitalize()
+    return data
+
 @app.post("/activities")
 async def save_activity(payload: ActivitySave):
-    result = db.add_activity(payload.session_id, payload.data)
+    normalized_data = normalize_activity_data(payload.data)
+    result = db.add_activity(payload.session_id, normalized_data)
     if not result:
         raise HTTPException(status_code=500, detail="Failed to save activity")
     
@@ -239,7 +259,8 @@ async def delete_activity(activity_id: str):
 
 @app.put("/activities/{activity_id}")
 async def update_activity(activity_id: str, payload: dict):
-    result = db.update_activity(activity_id, payload)
+    normalized_data = normalize_activity_data(payload)
+    result = db.update_activity(activity_id, normalized_data)
     if not result:
         raise HTTPException(status_code=404, detail="Activity not found")
     

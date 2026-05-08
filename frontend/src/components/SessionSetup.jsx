@@ -2,6 +2,14 @@
 
 import React, { useState, useRef } from 'react';
 import { useForm } from "react-hook-form";
+
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000';
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' ? 'http://127.0.0.1:8000' : `http://${hostname}:8000`;
+};
+const API_URL = getApiUrl();
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { 
@@ -70,10 +78,7 @@ export default function SessionSetup({ onSessionCreated }) {
       };
       mediaRecorder.current.onstop = async () => {
         const duration = Date.now() - recordingStartTime.current;
-        if (duration < 500) {
-            console.warn("Grabación demasiado corta");
-            return;
-        }
+        if (duration < 50) return;
 
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         if (audioBlob.size > 0) {
@@ -101,7 +106,7 @@ export default function SessionSetup({ onSessionCreated }) {
     const formData = new FormData();
     formData.append('file', blob, 'recording.webm');
     try {
-      const response = await fetch('http://127.0.0.1:8000/transcribe', {
+      const response = await fetch(`${API_URL}/transcribe`, {
         method: 'POST',
         body: formData,
       });
@@ -113,7 +118,7 @@ export default function SessionSetup({ onSessionCreated }) {
       
       if (data.text) {
         // Now use the text to fill the whole setup
-        const classifyResp = await fetch('http://127.0.0.1:8000/classify-setup', {
+        const classifyResp = await fetch(`${API_URL}/classify-setup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: data.text })
@@ -145,7 +150,7 @@ export default function SessionSetup({ onSessionCreated }) {
         staff_count: 1,
         hourly_cost: 0
       };
-      const response = await fetch('http://127.0.0.1:8000/sessions', {
+      const response = await fetch(`${API_URL}/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

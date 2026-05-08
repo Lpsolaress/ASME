@@ -23,6 +23,13 @@ import {
   Triangle
 } from "lucide-react";
 
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000';
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' ? 'http://127.0.0.1:8000' : `http://${hostname}:8000`;
+};
+const API_URL = getApiUrl();
+
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useState, useRef } from "react";
@@ -84,7 +91,7 @@ export default function ActivityList({
       };
       mediaRecorder.current.onstop = async () => {
         const duration = Date.now() - recordingStartTime.current;
-        if (duration < 500) return; // Evita audios corruptos por ser demasiado cortos
+        if (duration < 50) return; // Umbral mínimo para máxima sensibilidad
 
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         if (audioBlob.size > 0) {
@@ -112,7 +119,7 @@ export default function ActivityList({
     const formData = new FormData();
     formData.append('file', blob, 'recording.webm');
     try {
-      const response = await fetch('http://127.0.0.1:8000/transcribe', {
+      const response = await fetch(`${API_URL}/transcribe`, {
         method: 'POST',
         body: formData,
       });

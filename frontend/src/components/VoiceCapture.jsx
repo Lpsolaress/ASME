@@ -1,7 +1,11 @@
-'use client';
-
-import { useState, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
+
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000';
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' ? 'http://127.0.0.1:8000' : `http://${hostname}:8000`;
+};
+const API_URL = getApiUrl();
 
 export default function VoiceCapture({ onTranscription }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -28,7 +32,7 @@ export default function VoiceCapture({ onTranscription }) {
 
       mediaRecorder.current.onstop = async () => {
         const duration = Date.now() - recordingStartTime.current;
-        if (duration < 500) return;
+        if (duration < 50) return;
 
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         await sendToTranscription(audioBlob);
@@ -56,7 +60,7 @@ export default function VoiceCapture({ onTranscription }) {
     formData.append('file', blob, 'recording.webm');
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/transcribe', {
+      const response = await fetch(`${API_URL}/transcribe`, {
         method: 'POST',
         body: formData,
       });

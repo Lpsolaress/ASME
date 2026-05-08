@@ -28,6 +28,17 @@ import VoiceCapture from "@/components/VoiceCapture";
 import ActivityList from "@/components/ActivityList";
 import SessionSetup from "@/components/SessionSetup";
 import ProcessAnalysis from "@/components/ProcessAnalysis";
+
+// Dynamic API URL detection to support network access (mobile, other devices)
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000';
+  const hostname = window.location.hostname;
+  // If we are on localhost, use 127.0.0.1 for the backend.
+  // Otherwise, use the same hostname as the frontend.
+  return hostname === 'localhost' ? 'http://127.0.0.1:8000' : `http://${hostname}:8000`;
+};
+
+const API_URL = getApiUrl();
 import FinalReport from "@/components/FinalReport";
 import AnalysisLoader from "@/components/AnalysisLoader";
 import ExportReportView from "@/components/ExportReportView";
@@ -88,7 +99,7 @@ export default function Home() {
   const fetchActivities = async () => {
     setIsLoadingActivities(true);
     try {
-      const resp = await fetch(`http://127.0.0.1:8000/sessions/${session.id}/activities`);
+      const resp = await fetch(`${API_URL}/sessions/${session.id}/activities`);
       if (resp.ok) {
         const data = await resp.json();
         setActivities(data);
@@ -195,7 +206,7 @@ export default function Home() {
 
   const deleteActivity = async (id) => {
     try {
-      const response = await fetchWithRetry(`http://127.0.0.1:8000/activities/${id}`, {
+      const response = await fetchWithRetry(`${API_URL}/activities/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -220,7 +231,7 @@ export default function Home() {
   const runFinalAnalysis = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await fetchWithRetry(`http://127.0.0.1:8000/sessions/${session.id}/analyze`);
+      const response = await fetchWithRetry(`${API_URL}/sessions/${session.id}/analyze`);
       const data = await response.json();
       setAnalysis(data);
       toast({
@@ -246,7 +257,7 @@ export default function Home() {
 
   const triggerRealDownload = (includeAnalysis = true) => {
     if (!session) return;
-    const url = `http://127.0.0.1:8000/export-pdf/${session.id}${includeAnalysis ? '?include_analysis=true' : ''}`;
+    const url = `${API_URL}/export-pdf/${session.id}${includeAnalysis ? '?include_analysis=true' : ''}`;
     window.open(url, '_blank');
   };
 
