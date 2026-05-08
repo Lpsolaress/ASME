@@ -51,6 +51,7 @@ export default function ActivityList({
 
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
+  const recordingStartTime = useRef(0);
 
   const handleManualSubmit = () => {
     if (!manualData.name) return;
@@ -69,7 +70,12 @@ export default function ActivityList({
   };
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Acceso denegado: El uso del micrófono requiere una conexión segura (HTTPS o localhost).");
+      return;
+    }
     try {
+      recordingStartTime.current = Date.now();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder.current = new MediaRecorder(stream);
       audioChunks.current = [];
@@ -77,6 +83,9 @@ export default function ActivityList({
         if (e.data.size > 0) audioChunks.current.push(e.data);
       };
       mediaRecorder.current.onstop = async () => {
+        const duration = Date.now() - recordingStartTime.current;
+        if (duration < 500) return; // Evita audios corruptos por ser demasiado cortos
+
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         if (audioBlob.size > 0) {
           await sendToTranscription(audioBlob);
@@ -145,49 +154,48 @@ export default function ActivityList({
 
 
   return (
-    <div className="max-w-[1200px] mx-auto pb-40 animate-in fade-in duration-700 pt-6">
-      {/* ... (Header and Manual Form remain same) ... */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-10 px-2 gap-4">
+    <div className="w-full max-w-[1200px] mx-auto pb-40 animate-in fade-in duration-700 pt-4 md:pt-6 px-4 md:px-0">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-6 md:mb-10 gap-4">
         <div>
-          <p className="text-[#FFD600] font-black uppercase tracking-[0.3em] text-[10px] mb-2">Fase 2: Registro de Actividades</p>
-          <h1 className="text-5xl font-black tracking-tighter uppercase">{session?.task_name || 'Análisis de Proceso'}</h1>
-          <p className="text-gray-500 font-medium mt-2">Inventario detallado de tareas para {session?.company_name}.</p>
+          <p className="text-[#FFD600] font-black uppercase tracking-[0.3em] text-[8px] md:text-[10px] mb-2">Fase 2: Registro de Actividades</p>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none">{session?.task_name || 'Análisis de Proceso'}</h1>
+          <p className="text-sm md:text-gray-500 font-medium mt-2">Inventario para {session?.company_name}.</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-row items-center gap-2 md:gap-4 w-full md:w-auto">
           <Button 
               variant="outline" 
               onClick={onBack}
-              className="rounded-xl px-6 h-12 font-black uppercase text-xs tracking-widest gap-2 text-gray-500 hover:text-black hover:bg-gray-100 transition-all border-gray-200"
+              className="flex-1 md:flex-none rounded-xl px-4 md:px-6 h-10 md:h-12 font-black uppercase text-[10px] md:text-xs tracking-widest gap-2 text-gray-500 hover:text-black hover:bg-gray-100 transition-all border-gray-200"
           >
-            <ArrowLeft className="w-4 h-4" /> Volver
+            <ArrowLeft className="w-3 md:w-4 h-3 md:h-4" /> Volver
           </Button>
           <Button 
             onClick={() => setIsManual(!isManual)}
-            className="bg-[#FFD600] text-black hover:bg-[#FFD600]/90 rounded-xl px-6 h-12 font-black tracking-widest shadow-sm transition-all flex items-center gap-2 border-none"
+            className="flex-1 md:flex-none bg-[#FFD600] text-black hover:bg-[#FFD600]/90 rounded-xl px-4 md:px-6 h-10 md:h-12 font-black text-[10px] md:text-xs tracking-widest shadow-sm transition-all flex items-center gap-2 border-none"
           >
-            <Plus className="w-4 h-4" /> Añadir actividad
+            <Plus className="w-3 md:w-4 h-3 md:h-4" /> Añadir
           </Button>
         </div>
       </div>
 
       {isManual && (
-        <Card className="border border-gray-200 rounded-[24px] bg-white shadow-lg animate-in slide-in-from-top-4 duration-500 overflow-hidden mb-8 mx-2">
-          <CardHeader className="px-8 pt-8 pb-2 flex flex-row justify-between items-center">
-            <CardTitle className="text-xl font-black uppercase tracking-tight">Nueva Actividad</CardTitle>
+        <Card className="border border-gray-200 rounded-[20px] md:rounded-[24px] bg-white shadow-lg animate-in slide-in-from-top-4 duration-500 overflow-hidden mb-8">
+          <CardHeader className="px-4 md:px-8 pt-6 md:pt-8 pb-2 flex flex-row justify-between items-center">
+            <CardTitle className="text-lg md:text-xl font-black uppercase tracking-tight">Nueva Actividad</CardTitle>
             <button 
                 onClick={isRecording ? stopRecording : startRecording}
-                className={`h-10 px-4 rounded-xl border flex items-center gap-2 transition-all duration-300 ${
+                className={`h-9 md:h-10 px-3 md:px-4 rounded-xl border flex items-center gap-2 transition-all duration-300 ${
                     isRecording 
                     ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' 
                     : 'bg-white border-gray-200 hover:border-black text-black'
                 }`}
             >
-                <Mic className={`w-4 h-4 ${isRecording ? 'text-red-600' : 'text-black'}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest">{isRecording ? "Grabando..." : "Grabar por Voz"}</span>
+                <Mic className={`w-3.5 md:w-4 h-3.5 md:h-4 ${isRecording ? 'text-red-600' : 'text-black'}`} />
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest">{isRecording ? "Grabando..." : "Por Voz"}</span>
             </button>
           </CardHeader>
-          <CardContent className="p-8 space-y-8">
+          <CardContent className="p-4 md:p-8 space-y-6 md:space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">Descripción</label>
@@ -259,7 +267,7 @@ export default function ActivityList({
       )}
 
       {/* LISTA DE ACTIVIDADES (Mockup Style) */}
-      <div className="grid grid-cols-1 gap-4 px-2">
+      <div className="grid grid-cols-1 gap-4">
           {activities.length === 0 ? (
               <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-[24px] bg-white/50">
                   <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No hay actividades registradas</p>
@@ -379,9 +387,9 @@ export default function ActivityList({
       {/* BOTTOM FIXED BAR */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.05)] z-50">
         <div className="max-w-[1200px] mx-auto px-6 h-24 flex items-center justify-between">
-          <div className="flex items-baseline gap-4">
-            <span className="text-sm font-bold text-black tracking-tight hidden md:inline">Total carga diaria:</span>
-            <span className="text-3xl md:text-4xl font-black tracking-tighter" style={{ WebkitTextStroke: '1px black', color: '#FFD600', textShadow: '2px 2px 0px black' }}>
+          <div className="flex items-baseline gap-2 md:gap-4">
+            <span className="text-xs md:text-sm font-bold text-black tracking-tight hidden sm:inline">Total carga diaria:</span>
+            <span className="text-2xl md:text-4xl font-black tracking-tighter" style={{ WebkitTextStroke: '1px black', color: '#FFD600', textShadow: '2px 2px 0px black' }}>
               {totalMinutesDaily.toLocaleString()} min
             </span>
           </div>

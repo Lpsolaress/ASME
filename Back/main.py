@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -75,20 +76,32 @@ async def health_check():
     return {"status": "ok", "model": model_size}
 
 @app.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+def transcribe_audio(file: UploadFile = File(...)):
+    temp_file = f"temp_{uuid.uuid4()}_{file.filename}"
     try:
-        temp_file = f"temp_{file.filename}"
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        segments, info = model.transcribe(temp_file, beam_size=5)
-        text = " ".join([segment.text for segment in segments])
-        os.remove(temp_file)
+        # Si el archivo es demasiado pequeño (cabeceras sin audio real)
+        if os.path.getsize(temp_file) < 1000: 
+            return {"text": "", "language": "es", "duration": 0}
         
-        return {"text": text.strip(), "language": info.language, "duration": info.duration}
+        # vad_filter=True ayuda a eliminar silencios y reducir alucinaciones
+        # language="es" acelera la detección y mejora precisión en español
+        segments, info = model.transcribe(temp_file, beam_size=5, vad_filter=True, language="es")
+        text = " ".join([segment.text for segment in segments])
+        
+        return {
+            "text": text.strip(), 
+            "language": info.language, 
+            "duration": info.duration
+        }
     except Exception as e:
         print(f"TRANSCRIBE ERROR: {e}")
         raise HTTPException(status_code=500, detail=f"Error en transcripción: {str(e)}")
+    finally:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
 
 class SetupClassification(BaseModel):
     company_name: str
@@ -195,6 +208,12 @@ async def save_activity(payload: ActivitySave):
     result = db.add_activity(payload.session_id, payload.data)
     if not result:
         raise HTTPException(status_code=500, detail="Failed to save activity")
+    
+    # Invalida el caché de análisis al cambiar datos
+    cache_path = get_cache_path(payload.session_id)
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+        
     return result
 
 @app.get("/sessions/{session_id}/activities")
@@ -203,9 +222,19 @@ async def get_activities(session_id: str):
 
 @app.delete("/activities/{activity_id}")
 async def delete_activity(activity_id: str):
+    # Obtener session_id antes de borrar para invalidar caché
+    activity = db.get_activity(activity_id)
+    session_id = activity['session_id'] if activity else None
+    
     success = db.delete_activity(activity_id)
     if not success:
         raise HTTPException(status_code=404, detail="Activity not found")
+    
+    if session_id:
+        cache_path = get_cache_path(session_id)
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+            
     return {"status": "success"}
 
 @app.put("/activities/{activity_id}")
@@ -213,6 +242,14 @@ async def update_activity(activity_id: str, payload: dict):
     result = db.update_activity(activity_id, payload)
     if not result:
         raise HTTPException(status_code=404, detail="Activity not found")
+    
+    # Invalida caché
+    activity = db.get_activity(activity_id)
+    if activity:
+        cache_path = get_cache_path(activity['session_id'])
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+            
     return result
 
 @app.get("/export-pdf/{session_id}")
@@ -288,13 +325,13 @@ async def analyze_session_data(session_id: str):
     ])
 
     system_prompt = f"""
-    Eres un consultor senior en Ingeniería Industrial y Transformación Digital.
-    Has realizado un estudio ASME para la empresa {session['company_name']} en el departamento {session['department']}.
-    El proceso específico analizado es: "{session['task_name']}".
-    
     Tu objetivo es proponer un Plan de Optimización de Procesos enfocado específicamente en "{session['task_name']}".
     Debes identificar oportunidades en tareas NVA (desperdicio) y también eficiencias en tareas VA (valor añadido).
     Propón soluciones genéricas de software (ej: RPA, IA, OCR, Automatización de workflows).
+    
+    IMPORTANTE: Debes generar AL MENOS 3 sugerencias de optimización, incluso si solo hay una actividad en la lista. 
+    Analiza profundamente cada actividad proporcionada para encontrar puntos de mejora.
+    Responde SIEMPRE con datos, no dejes la lista de sugerencias vacía.
     """
 
     user_prompt = f"""

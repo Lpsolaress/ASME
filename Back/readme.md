@@ -1,88 +1,77 @@
-# Servicio Backend ASME Industrial
+# Servicio Backend ASME Digital
 
-Este es el núcleo computacional de la plataforma ASME, encargado de la gestión de datos, análisis mediante IA y generación de reportes técnicos certificados.
+Este es el núcleo computacional de la plataforma ASME Digital, responsable del procesamiento de audio mediante IA, la clasificación de procesos industriales y la generación de reportes técnicos certificados.
 
----
+## Requisitos del Sistema
 
-## 📋 Requisitos Previos
+Para el funcionamiento correcto del backend, es indispensable contar con los siguientes componentes instalados en el sistema:
 
-Antes de comenzar, asegúrate de tener instalado:
-*   **Python 3.10+**
-*   **pip** (gestor de paquetes de Python)
-*   **PostgreSQL** (o acceso a una instancia de Supabase)
+### 1. Python 3.10 o superior
+El motor está desarrollado sobre FastAPI y requiere una versión moderna de Python.
 
----
+### 2. FFmpeg
+FFmpeg es una herramienta de línea de comandos necesaria para que la librería Faster-Whisper pueda procesar y decodificar los archivos de audio .webm capturados por el navegador.
+- En macOS (Homebrew): `brew install ffmpeg`
+- En Linux (Ubuntu/Debian): `sudo apt update && sudo apt install ffmpeg`
+- En Windows: Descargar los binarios de ffmpeg.org y añadirlos al PATH del sistema.
 
-## 🛠️ Configuración e Instalación
+### 3. PostgreSQL
+Se requiere una base de datos PostgreSQL activa. El sistema utiliza el driver psycopg2 para la persistencia de sesiones y actividades.
 
-Sigue estos pasos para configurar el entorno de desarrollo local:
+## Instalación y Configuración
 
-### 1. Preparar el Entorno Virtual
-Es recomendable usar un entorno virtual para aislar las dependencias del proyecto.
+Siga estrictamente estos pasos para preparar el entorno:
 
+### 1. Clonar el repositorio y navegar al directorio
 ```bash
-# Navegar a la carpeta del backend
 cd Back
-
-# Crear el entorno virtual
-python -m venv venv
-
-# Activar el entorno virtual
-# En macOS/Linux:
-source venv/bin/activate
-# En Windows:
-# venv\Scripts\activate
 ```
 
-### 2. Instalar Dependencias
-Con el entorno virtual activado, instala todos los paquetes necesarios:
+### 2. Crear y activar un entorno virtual
+Es obligatorio usar un entorno virtual para garantizar la compatibilidad de las librerías.
+```bash
+# Crear
+python -m venv venv
 
+# Activar (macOS/Linux)
+source venv/bin/activate
+
+# Activar (Windows)
+venv\Scripts\activate
+```
+
+### 3. Instalar dependencias de Python
+Instale todos los paquetes necesarios listados en el archivo de requerimientos.
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configuración de Variables de Entorno
-Crea un archivo `.env` en la raíz de la carpeta `/Back` (puedes usar el archivo `.env` existente como base) con las siguientes claves:
-
+### 4. Configuración de Variables de Entorno
+Cree un archivo llamado `.env` en la carpeta `/Back`. Este archivo debe contener las credenciales de acceso:
 ```env
-OPENAI_API_KEY=tu_clave_de_openai_aqui
-DATABASE_URL=postgresql://usuario:password@host:puerto/nombre_db
+OPENAI_API_KEY=su_clave_api_de_openai
+DATABASE_URL=postgresql://usuario:contraseña@host:puerto/nombre_base_datos
 ```
-
----
 
 ## Ejecución del Servidor
 
-Para iniciar el servidor en modo desarrollo (con recarga automática):
+Para iniciar el servicio en modo de desarrollo con recarga automática al detectar cambios:
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-El backend estará disponible en: `http://localhost:8000`
+El servidor estará operativo en: `http://localhost:8000`
 
----
+## Documentación Técnica de la API
 
-## 📖 Documentación de la API
+Una vez iniciado el servidor, puede consultar la especificación técnica de los endpoints en:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-FastAPI genera automáticamente documentación interactiva. Una vez que el servidor esté corriendo, puedes acceder a:
+## Estructura de Directorios
 
-*   **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) (Ideal para probar los endpoints)
-*   **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc) (Documentación más limpia y detallada)
-
----
-
-## Estructura del Proyecto
-
-*   `main.py`: Punto de entrada de la aplicación y definición de rutas.
-*   `/database`: Configuración de la conexión y modelos de la base de datos.
-*   `/services`: Lógica de negocio (IA, Generación de PDF, etc.).
-*   `requirements.txt`: Lista de dependencias del proyecto.
-
----
-
-## Enlaces de Interés
-*   [Volver al Inicio del Proyecto](../README.md)
-*   [Arquitectura Detallada](../ARCHITECTURE.md)
-*   [Manual del Frontend](../Frontend/README.md)
-
+- main.py: Lógica de la API y rutas principales.
+- services/database.py: Gestión de persistencia y pool de conexiones.
+- services/pdf_service.py: Lógica de generación de reportes industriales.
+- temp_*: Directorio temporal para el procesamiento de segmentos de audio (se limpian automáticamente).

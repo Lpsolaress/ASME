@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { ChevronRight } from 'lucide-react';
 
 export default function VoiceCapture({ onTranscription }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -8,9 +9,15 @@ export default function VoiceCapture({ onTranscription }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
+  const recordingStartTime = useRef(0);
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Navegador no compatible: El acceso al micrófono está restringido en conexiones no seguras (HTTP via IP). Usa localhost o HTTPS.");
+      return;
+    }
     try {
+      recordingStartTime.current = Date.now();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder.current = new MediaRecorder(stream);
       audioChunks.current = [];
@@ -20,7 +27,10 @@ export default function VoiceCapture({ onTranscription }) {
       };
 
       mediaRecorder.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
+        const duration = Date.now() - recordingStartTime.current;
+        if (duration < 500) return;
+
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         await sendToTranscription(audioBlob);
       };
 
@@ -43,7 +53,7 @@ export default function VoiceCapture({ onTranscription }) {
   const sendToTranscription = async (blob) => {
     setIsProcessing(true);
     const formData = new FormData();
-    formData.append('file', blob, 'recording.wav');
+    formData.append('file', blob, 'recording.webm');
 
     try {
       const response = await fetch('http://127.0.0.1:8000/transcribe', {
@@ -75,12 +85,12 @@ export default function VoiceCapture({ onTranscription }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-12 space-y-10 border-4 border-primary rounded-none bg-white max-w-2xl mx-auto">
-      <div className="text-center space-y-4">
-        <h2 className="text-4xl font-black uppercase tracking-tighter">
+    <div className="flex flex-col items-center justify-center p-6 md:p-12 space-y-8 md:space-y-10 border-4 border-primary rounded-none bg-white w-full max-w-2xl mx-auto">
+      <div className="text-center space-y-3 md:space-y-4">
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter">
           {isRecording ? "Capturando..." : "Describe la actividad"}
         </h2>
-        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] max-w-xs mx-auto">
+        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[8px] md:text-[10px] max-w-xs mx-auto">
           Sistema de entrada por voz con análisis heurístico de procesos
         </p>
       </div>
@@ -92,14 +102,15 @@ export default function VoiceCapture({ onTranscription }) {
           onMouseUp={stopRecording}
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
-          className={`w-32 h-32 flex items-center justify-center transition-all duration-300 border-4 border-primary ${
+          className={`w-24 h-24 md:w-32 md:h-32 flex items-center justify-center transition-all duration-300 border-4 border-primary ${
             isRecording ? "bg-secondary voice-pulse" : "bg-primary text-secondary hover:bg-secondary hover:text-primary"
           }`}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            width="48" 
-            height="48" 
+            width="32" 
+            height="32" 
+            className="md:w-12 md:h-12"
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
@@ -123,7 +134,7 @@ export default function VoiceCapture({ onTranscription }) {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="O ESCRIBE LA ACTIVIDAD AQUÍ..."
-            className="w-full min-h-[140px] p-6 bg-muted border-2 border-primary rounded-none text-xl font-black uppercase tracking-tight focus:bg-white transition-colors outline-none resize-none placeholder:text-primary/20"
+            className="w-full min-h-[120px] md:min-h-[140px] p-4 md:p-6 bg-muted border-2 border-primary rounded-none text-lg md:text-xl font-black uppercase tracking-tight focus:bg-white transition-colors outline-none resize-none placeholder:text-primary/20"
           />
           {isProcessing && (
             <div className="absolute inset-0 bg-white/80 flex items-center justify-center border-2 border-primary">

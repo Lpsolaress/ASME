@@ -1,24 +1,37 @@
 import os
 import psycopg2
 import psycopg2.extras
+from psycopg2 import pool
 from dotenv import load_dotenv
 
 load_dotenv()
 
 class DatabaseService:
+    _pool = None
+
     def __init__(self):
         self.db_url = os.getenv("DATABASE_URL")
-        # Ensure fresh connection on init
         if not self.db_url or "[YOUR-PASSWORD]" in self.db_url:
             print("Warning: DATABASE_URL not configured correctly in .env")
-    
+        
+        # Inicializar el pool si no existe
+        if DatabaseService._pool is None and self.db_url:
+            try:
+                DatabaseService._pool = psycopg2.pool.SimpleConnectionPool(
+                    1, 10, self.db_url
+                )
+                print("Database connection pool initialized.")
+            except Exception as e:
+                print(f"Error initializing connection pool: {e}")
+
     def _get_connection(self):
-        try:
-            conn = psycopg2.connect(self.db_url)
-            return conn
-        except Exception as e:
-            print(f"Error connecting to Postgres: {e}")
-            return None
+        if DatabaseService._pool:
+            return DatabaseService._pool.getconn()
+        return None
+
+    def _release_connection(self, conn):
+        if DatabaseService._pool and conn:
+            DatabaseService._pool.putconn(conn)
 
     def create_session(self, company_name: str, department: str, task_name: str = "", monthly_agreement: float = 0, minutes_per_hour: float = 60, staff_count: int = 1, hourly_cost: float = 0):
         conn = self._get_connection()
@@ -35,7 +48,7 @@ class DatabaseService:
                     cur.execute(query, (company_name, department, task_name, monthly_agreement, minutes_per_hour, staff_count, hourly_cost))
                     return cur.fetchone()
         finally:
-            conn.close()
+            self._release_connection(conn)
 
     def add_activity(self, session_id: str, activity_data: dict):
         conn = self._get_connection()
@@ -71,7 +84,7 @@ class DatabaseService:
 
                     return cur.fetchone()
         finally:
-            conn.close()
+            self._release_connection(conn)
 
     def get_session_activities(self, session_id: str):
         conn = self._get_connection()
@@ -84,7 +97,7 @@ class DatabaseService:
                     cur.execute(query, (session_id,))
                     return cur.fetchall()
         finally:
-            conn.close()
+            self._release_connection(conn)
 
     def get_session(self, session_id: str):
         conn = self._get_connection()
@@ -97,7 +110,7 @@ class DatabaseService:
                     cur.execute(query, (session_id,))
                     return cur.fetchone()
         finally:
-            conn.close()
+            self._release_connection(conn)
 
     def delete_activity(self, activity_id: str):
         conn = self._get_connection()
@@ -109,7 +122,7 @@ class DatabaseService:
                     cur.execute("DELETE FROM activities WHERE id = %s;", (activity_id,))
                     return cur.rowcount > 0
         finally:
-            conn.close()
+            self._release_connection(conn)
 
     def update_activity(self, activity_id: str, activity_data: dict):
         conn = self._get_connection()
@@ -140,4 +153,17 @@ class DatabaseService:
                     ))
                     return cur.fetchone()
         finally:
-            conn.close()
+            self._release_connection(conn)
+
+    def get_activity(self, activity_id: str):
+        conn = self._get_connection()
+        if not conn: return None
+        
+        try:
+            with conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    query = "SELECT * FROM activities WHERE id = %s;"
+                    cur.execute(query, (activity_id,))
+                    return cur.fetchone()
+        finally:
+            self._release_connection(conn)

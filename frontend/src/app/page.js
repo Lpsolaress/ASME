@@ -254,15 +254,15 @@ export default function Home() {
     <div className={`min-h-screen font-sans ${!session && !showSetup ? 'bg-engineering-grid text-white' : 'bg-background text-foreground'} pb-32 transition-colors duration-500`}>
       {/* Navbar Industrial */}
       <nav className={`border-b sticky top-0 z-50 transition-all duration-500 ${!session && !showSetup ? 'bg-transparent border-white/5' : 'bg-white border-gray-100'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          <div className="flex items-center space-x-6">
+        <div className="w-full px-4 md:px-8 h-20 flex justify-between items-center">
+          <div className="flex items-center space-x-4 md:space-x-6">
             <button 
               onClick={resetApp}
               className={`p-2 rounded-xl transition-all hover:scale-110 active:scale-95 ${!session && !showSetup ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-primary'}`}
             >
               <HomeIcon className="w-6 h-6" />
             </button>
-            <span className={`font-black text-xl tracking-tighter uppercase ${!session && !showSetup ? 'text-white' : 'text-primary'}`}>ASME DIGITAL</span>
+            <span className={`font-black text-lg md:text-xl tracking-tighter uppercase ${!session && !showSetup ? 'text-white' : 'text-primary'}`}>ASME DIGITAL</span>
           </div>
           
           {session && (
@@ -313,13 +313,13 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-6">
         {!session ? (
           !showSetup ? (
-            <section className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-12 py-20 animate-in fade-in zoom-in duration-1000">
-              <div className="space-y-6 max-w-4xl">
-                <h1 className="text-8xl md:text-9xl font-black tracking-tighter leading-[0.8] text-secondary uppercase">
-                  Analiza tu proceso <br />
+            <section className="flex flex-col items-center justify-center min-h-[85vh] text-center space-y-8 md:space-y-12 py-12 md:py-20 animate-in fade-in zoom-in duration-1000">
+              <div className="space-y-4 md:space-y-6 max-w-5xl">
+                <h1 className="text-5xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-secondary uppercase">
+                  Analiza tu proceso <br className="hidden md:block" />
                   en minutos
                 </h1>
-                <p className="text-xl text-white/50 font-medium max-w-2xl mx-auto leading-relaxed">
+                <p className="text-lg md:text-xl text-white/50 font-medium max-w-2xl mx-auto leading-relaxed px-4">
                   Optimizamos la automatización industrial mediante análisis de datos en tiempo real. 
                   Obtén visibilidad total de tu cadena de producción con precisión de ingeniería.
                 </p>
@@ -327,7 +327,7 @@ export default function Home() {
               
               <Button 
                 onClick={() => setShowSetup(true)}
-                className="bg-secondary text-primary font-black uppercase text-lg tracking-widest px-12 h-20 rounded-xl hover:scale-105 transition-all shadow-[0_0_50px_rgba(255,214,0,0.2)]"
+                className="bg-secondary text-primary font-black uppercase text-base md:text-lg tracking-widest px-8 md:px-12 h-16 md:h-20 rounded-xl hover:scale-105 transition-all shadow-[0_0_50px_rgba(255,214,0,0.2)]"
               >
                 Empezar análisis
               </Button>

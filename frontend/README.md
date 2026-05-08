@@ -1,39 +1,56 @@
-# Aplicación Frontend ASME Industrial
+# Aplicación Frontend ASME Digital
 
-## Índice de Documentación
-*   [🏠 Volver al Inicio](../README.md)
-*   [📑 Arquitectura Detallada](../ARCHITECTURE.md)
-*   [⚙️ Manual del Backend](../Back/README.md)
+Este es el cliente web de la plataforma ASME Digital, construido con Next.js y Tailwind CSS. La interfaz está optimizada para dispositivos móviles y escritorio, siguiendo un estándar estético industrial de alto contraste.
 
----
+## Requisitos de Instalación
 
-## Experiencia de Usuario e Interfaz
-El frontend es una aplicación React de alto rendimiento basada en Next.js, diseñada para proporcionar una experiencia técnica fluida para ingenieros industriales. Prioriza la claridad de los datos y el impacto visual mediante un sistema de diseño industrial premium.
+Asegúrese de contar con las siguientes herramientas instaladas en su estación de trabajo:
 
-## Implementación del Flujo de Trabajo
-La aplicación implementa un flujo de trabajo secuencial de cinco etapas:
+### 1. Node.js (Versión 18.0 o superior)
+Se recomienda el uso de la versión LTS actual de Node.js para garantizar la compatibilidad con los paquetes de Next.js y las librerías de componentes.
 
-1.  **Setup (SessionSetup.jsx)**: Captura metadatos del proyecto con validación Zod.
-2.  **Captura de Datos (ActivityList.jsx)**: Entrada de actividades mediante transcripción de voz en tiempo real.
-3.  **Identificación (ActivityCard.jsx)**: Retroalimentación inmediata sobre los resultados de clasificación de la IA.
-4.  **Análisis (ProcessAnalysis.jsx)**: 
-    *   **Vista de Módulos**: Desglose de ingeniería detallado por actividad.
-    *   **Hoja de Ruta**: Recomendaciones estratégicas de automatización con mapeo de ROI.
-5.  **Reporte Final (FinalReport.jsx)**: Dashboard de resumen ejecutivo con descarga de PDF certificado.
+### 2. Gestor de Paquetes (npm o yarn)
+El proyecto utiliza npm por defecto para la gestión de dependencias.
 
-## Arquitectura de Componentes
-*   **Diseño Atómico**: Componentes modulares para reutilización (Botones, Tarjetas, Steppers).
-*   **Gestión de Estado**: Hooks de React para manejar el estado complejo de las sesiones y actividades.
-*   **Estética Industrial**: Uso de Tailwind CSS para implementar una visual "System Engine" de alto contraste (Negro/Amarillo).
+## Pasos para la Configuración Local
 
-## Principios de Diseño
-*   **Alto Contraste**: Uso de negro profundo y amarillo industrial para máxima legibilidad.
-*   **Tipografía Técnica**: Enfoque en encabezados claros y familias de fuentes técnicas.
-*   **Micro-animaciones**: Transiciones sutiles para cambios de estado (AnalysisLoader.jsx).
+Siga estos pasos para desplegar la aplicación en su entorno de desarrollo local:
 
-## Instalación y Desarrollo
+### 1. Navegar al directorio del frontend
+```bash
+cd frontend
+```
+
+### 2. Instalar las dependencias del proyecto
+Este paso descargará todas las librerías necesarias, incluyendo Tailwind CSS, Lucide React y componentes de UI.
 ```bash
 npm install
+```
+
+### 3. Configuración de conexión con el Backend
+La aplicación está configurada para conectarse por defecto a `http://localhost:8000`. Si su servidor backend se encuentra en otra dirección o puerto, verifique la variable de configuración en el archivo correspondiente (generalmente en src/app/page.js o archivos de configuración de entorno).
+
+## Ejecución en Desarrollo
+
+Para iniciar el servidor de desarrollo con Hot Module Replacement (HMR):
+
+```bash
 npm run dev
 ```
-La aplicación será accesible en `http://localhost:3000`.
+
+La aplicación estará accesible en: `http://localhost:3000`
+
+## Características Técnicas
+
+- Framework: Next.js 14+ con App Router.
+- Estilo: Tailwind CSS con sistema de diseño de alto contraste.
+- Iconografía: Lucide React.
+- Validación de Formularios: React Hook Form y Zod.
+- Transcripción de Voz: API de MediaRecorder integrada para captura de audio nativa.
+
+## Estructura de la Aplicación
+
+- src/app: Contiene las rutas y el layout principal de la aplicación.
+- src/components: Biblioteca de componentes modulares (SessionSetup, ActivityList, ProcessAnalysis, etc.).
+- public: Activos estáticos, imágenes y fuentes.
+- next.config.mjs: Configuración del framework Next.js.

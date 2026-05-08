@@ -42,6 +42,7 @@ export default function SessionSetup({ onSessionCreated }) {
   
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
+  const recordingStartTime = useRef(0);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -55,7 +56,12 @@ export default function SessionSetup({ onSessionCreated }) {
   });
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Error de Seguridad: El navegador bloquea el micrófono en conexiones HTTP (IP local). Por favor, accede mediante 'localhost' para habilitar la voz o usa una conexión HTTPS.");
+      return;
+    }
     try {
+      recordingStartTime.current = Date.now();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder.current = new MediaRecorder(stream);
       audioChunks.current = [];
@@ -63,6 +69,12 @@ export default function SessionSetup({ onSessionCreated }) {
         if (e.data.size > 0) audioChunks.current.push(e.data);
       };
       mediaRecorder.current.onstop = async () => {
+        const duration = Date.now() - recordingStartTime.current;
+        if (duration < 500) {
+            console.warn("Grabación demasiado corta");
+            return;
+        }
+
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
         if (audioBlob.size > 0) {
           await sendToTranscription(audioBlob);
@@ -148,11 +160,11 @@ export default function SessionSetup({ onSessionCreated }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6 space-y-12">
-      <Card className="max-w-2xl mx-auto border border-gray-200 rounded-[24px] shadow-sm bg-white overflow-hidden flex flex-col">
-        <CardHeader className="px-8 pt-8 pb-4 flex flex-row items-center justify-between border-b border-gray-50 mb-6">
-          <div className="flex items-center gap-4">
-            <CardTitle className="text-base font-medium text-gray-700">Configuración del Análisis</CardTitle>
+    <div className="w-full max-w-4xl mx-auto py-6 md:py-12 px-4 md:px-6 space-y-8 md:space-y-12">
+      <Card className="w-full max-w-2xl mx-auto border border-gray-200 rounded-[20px] md:rounded-[24px] shadow-sm bg-white overflow-hidden flex flex-col">
+        <CardHeader className="px-6 md:px-8 pt-6 md:pt-8 pb-4 flex flex-row items-center justify-between border-b border-gray-50 mb-4 md:mb-6">
+          <div className="flex items-center gap-3 md:gap-4">
+            <CardTitle className="text-sm md:text-base font-medium text-gray-700">Configuración</CardTitle>
             <button
               type="button"
               onMouseDown={startRecording}
@@ -175,11 +187,11 @@ export default function SessionSetup({ onSessionCreated }) {
           </div>
           <Factory className="w-5 h-5 text-gray-300" />
         </CardHeader>
-        <CardContent className="px-8 pb-8 space-y-8 flex-1">
-          <p className="text-sm text-gray-500 font-medium leading-relaxed max-w-md">
+        <CardContent className="px-6 md:px-8 pb-6 md:pb-8 space-y-6 md:space-y-8 flex-1">
+          <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed max-w-md">
             {isProcessing 
               ? "Extrayendo información con IA..." 
-              : "Por favor, proporcione la información básica o use el micrófono para dictar todo el contexto."}
+              : "Ingresa la información básica o usa el micrófono para dictar."}
           </p>
 
           <Form {...form}>
@@ -225,11 +237,11 @@ export default function SessionSetup({ onSessionCreated }) {
             </form>
           </Form>
 
-          <div className="pt-6 flex justify-end">
+          <div className="pt-4 md:pt-6 flex justify-stretch md:justify-end">
             <Button 
               onClick={form.handleSubmit(handleFinalSubmit)}
               disabled={isLoading || isProcessing}
-              className="bg-secondary hover:bg-secondary/90 text-black px-10 h-12 rounded-xl font-bold gap-2 shadow-sm"
+              className="w-full md:w-auto bg-secondary hover:bg-secondary/90 text-black px-10 h-12 md:h-14 rounded-xl font-bold gap-2 shadow-sm"
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
               Iniciar Análisis <ArrowRight className="w-5 h-5" />
