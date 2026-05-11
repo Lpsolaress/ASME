@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+openai
+faster-whisper
+psycopg2-binary
+python-multipart
+python-dotenv
+reportlab
+matplotlib
+Pillow

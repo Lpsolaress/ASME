@@ -1,0 +1,27 @@
+# Python
+Back/venv/
+Back/__pycache__/
+Back/.env
+Back/analysis_cache_*.json
+Back/test_report_*.png
+Back/test_report_*.pdf
+*.pyc
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Agent/Local
+.agent/
+.gemini/
+.3d-agent/
+implementation_plan.md
+task.md
+walkthrough.md
+*diagnostic.log
